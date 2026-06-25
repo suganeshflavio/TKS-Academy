@@ -177,11 +177,11 @@ export default function Course({ classes, setClasses }: CategoriesProps) {
       currentClasses.map((classItem) =>
         classItem.key === classKey
           ? {
-              ...classItem,
-              subjects: classItem?.subjects?.filter(
-                (subject) => subject !== subjectToRemove,
-              ),
-            }
+            ...classItem,
+            subjects: classItem?.subjects?.filter(
+              (subject) => subject !== subjectToRemove,
+            ),
+          }
           : classItem,
       ),
     );
@@ -601,7 +601,7 @@ export default function Course({ classes, setClasses }: CategoriesProps) {
                   size="large"
                   htmlType="submit"
                   icon={<PlusOutlined />}
-                  // disabled={!canSaveClass}
+                // disabled={!canSaveClass}
                 >
                   Add Course
                 </Button>

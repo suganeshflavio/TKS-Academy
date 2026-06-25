@@ -25,6 +25,7 @@ import {
   Layout,
   Menu,
   theme,
+  Typography,
 } from "antd";
 
 const { Header, Content, Sider } = Layout;
@@ -73,6 +74,7 @@ const App: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [classes, setClasses] = useState<ClassRecord[]>([]);
   const [videos, setVideos] = useState<VideoRecord[]>([]);
+  const { Title } = Typography;
 
   const isMobile = !screens.lg;
   const renderContent = () => {
@@ -128,7 +130,7 @@ const App: React.FC = () => {
           padding: "16px",
         }}
       >
-        <img
+        {/* <img
           src="/tks-academy-logo.svg"
           alt="logo"
           style={{
@@ -136,7 +138,16 @@ const App: React.FC = () => {
             height: "auto",
             transition: "all 0.3s",
           }}
-        />
+        /> */}
+        {collapsed ? (
+          <Title level={4} style={{ color: "#40a3d8" }}>
+            TKS
+          </Title>
+        ) : (
+          <Title level={3} style={{ color: "#40a3d8" }}>
+            TKS Academy
+          </Title>
+        )}
       </div>
 
       <Menu
@@ -149,7 +160,6 @@ const App: React.FC = () => {
       />
     </>
   );
-
 
   return (
     <Layout style={{ minHeight: "100vh" }}>

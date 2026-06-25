@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Form, Input, Typography } from "antd";
+import { Button, Card, Form, Input, Typography, message } from "antd";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -13,8 +13,16 @@ const passwordPattern =
 export default function LoginPage() {
   const router = useRouter();
 
-  const handleLogin = () => {
-    router.push("/dashboard");
+  const handleLogin = (values: { identifier: string; password: string }) => {
+    const email = values.identifier?.trim();
+    const password = values.password?.trim();
+
+    if (email === "TKS@gmail.com" && password === "TkS@12345") {
+      router.push("/dashboard");
+      return;
+    }
+
+    message.error("Invalid credentials. Please use the approved login details.");
   };
 
   return (
@@ -37,7 +45,7 @@ export default function LoginPage() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <Image
+          {/* <Image
             src="/tks-academy-logo.svg"
             alt="TKS Academy logo"
             width={180}
@@ -48,7 +56,10 @@ export default function LoginPage() {
               height: "auto",
               margin: "0 auto 18px",
             }}
-          />
+          /> */}
+          <Title level={2} style={{ color: '#40a3d8' }}>
+            TKS Academy
+          </Title>
 
           <Title level={4} style={{ marginBottom: 8 }}>
             Sign in with your account to continue

@@ -84,7 +84,7 @@ export default function Videos({ classes, videos, setVideos }: VideosProps) {
   const selectedClass = classes.find(
     (classItem) => classItem.key === selectedClassKey,
   );
-  console.log("videos",videos);
+  console.log("videos", videos);
 
   const subjectOptions =
     selectedClass?.subjects?.map((subject) => ({
@@ -153,9 +153,9 @@ export default function Videos({ classes, videos, setVideos }: VideosProps) {
       prev.map((video: any) =>
         video.key === selectedVideo.key
           ? {
-              ...video,
-              notes: [...(video.notes || []), fileList?.[0]?.name],
-            }
+            ...video,
+            notes: [...(video.notes || []), fileList?.[0]?.name],
+          }
           : video,
       ),
     );
@@ -176,9 +176,9 @@ export default function Videos({ classes, videos, setVideos }: VideosProps) {
       prev.map((video: any) =>
         video.key === selectedVideo.key
           ? {
-              ...video,
-              mcqs: [...(video.mcqs || []), mcq],
-            }
+            ...video,
+            mcqs: [...(video.mcqs || []), mcq],
+          }
           : video,
       ),
     );
@@ -354,9 +354,9 @@ export default function Videos({ classes, videos, setVideos }: VideosProps) {
                   <Form.Item
                     label="Subject"
                     name="subject"
-                    //   rules={[
-                    //     { required: true, message: "Please choose a subject." },
-                    //   ]}
+                  //   rules={[
+                  //     { required: true, message: "Please choose a subject." },
+                  //   ]}
                   >
                     <Select
                       size="large"
@@ -376,17 +376,16 @@ export default function Videos({ classes, videos, setVideos }: VideosProps) {
                   message={
                     selectedClass.accessType === "demo"
                       ? "This category is demo access"
-                      : `This category is paid ${
-                          selectedClass.paymentType === "emi"
-                            ? `with ${selectedClass.installments} installments`
-                            : "with full payment"
-                        }`
+                      : `This category is paid ${selectedClass.paymentType === "emi"
+                        ? `with ${selectedClass.installments} installments`
+                        : "with full payment"
+                      }`
                   }
                   description={
                     selectedClass.accessType === "paid"
                       ? `Price Rs. ${selectedClass.price}. Validity ${formatValidity(
-                          selectedClass.validityMonths,
-                        )}.`
+                        selectedClass.validityMonths,
+                      )}.`
                       : "No payment fields are needed for videos in this category."
                   }
                 />
