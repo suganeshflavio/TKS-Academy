@@ -26,8 +26,8 @@ import {
   UploadOutlined,
 } from "@ant-design/icons";
 import type { ClassRecord, VideoRecord } from "./types";
-import McqModal from "./modals/McqModal";
-import NotesModal from "./modals/NotesModal";
+import McqModal from "../modals/McqModal";
+import NotesModal from "../modals/NotesModal";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -50,7 +50,7 @@ type VideoFormValues = {
   videoName: string;
   videoFile?: UploadValue;
   description: string;
-  parts?: { title?: string }[];
+  // parts?: { title?: string }[];
 };
 
 const normalizeUpload = (
@@ -74,19 +74,17 @@ const formatValidity = (validityMonths?: number) => {
 export default function Videos({ classes, videos, setVideos }: VideosProps) {
   const [form] = Form.useForm<VideoFormValues>();
   const [isFormVisible, setIsFormVisible] = useState(false);
-const [selectedVideo, setSelectedVideo] =
-  useState<VideoRecord | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<VideoRecord | null>(null);
 
-const [notesOpen, setNotesOpen] =
-  useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
 
-const [mcqOpen, setMcqOpen] =
-  useState(false);
+  const [mcqOpen, setMcqOpen] = useState(false);
   const selectedClassKey = Form.useWatch("classKey", form);
 
   const selectedClass = classes.find(
     (classItem) => classItem.key === selectedClassKey,
   );
+  console.log("videos",videos);
 
   const subjectOptions =
     selectedClass?.subjects?.map((subject) => ({
@@ -113,14 +111,14 @@ const [mcqOpen, setMcqOpen] =
       return;
     }
 
-    const parts = Array.from({ length: installmentCount }, (_, index) => {
-      const partTitle = form.getFieldValue(["parts", index, "title"])?.trim();
+    // const parts = Array.from({ length: installmentCount }, (_, index) => {
+    //   const partTitle = form.getFieldValue(["parts", index, "title"])?.trim();
 
-      return {
-        installment: index + 1,
-        title: partTitle || `${values.videoName} - Part ${index + 1}`,
-      };
-    });
+    //   return {
+    //     installment: index + 1,
+    //     title: partTitle || `${values.videoName} - Part ${index + 1}`,
+    //   };
+    // });
 
     setVideos((currentVideos) => [
       ...currentVideos,
@@ -134,7 +132,7 @@ const [mcqOpen, setMcqOpen] =
         videoName: values.videoName.trim(),
         videoFileName: values.videoFile?.[0]?.name,
         description: values.description.trim(),
-        parts,
+        // parts,
       },
     ]);
 
@@ -149,50 +147,44 @@ const [mcqOpen, setMcqOpen] =
   };
 
   const saveNotes = (fileList: any) => {
-  if (!selectedVideo) return;
+    if (!selectedVideo) return;
 
-  setVideos((prev) =>
-    prev.map((video:any) =>
-      video.key === selectedVideo.key
-        ? {
-            ...video,
-            notes: [
-              ...(video.notes || []),
-              fileList?.[0]?.name,
-            ],
-          }
-        : video
-    )
-  );
+    setVideos((prev) =>
+      prev.map((video: any) =>
+        video.key === selectedVideo.key
+          ? {
+              ...video,
+              notes: [...(video.notes || []), fileList?.[0]?.name],
+            }
+          : video,
+      ),
+    );
 
-  setNotesOpen(false);
-};
-
-const saveMcq = (values: any) => {
-  if (!selectedVideo) return;
-
-  const mcq = {
-    id: Date.now().toString(),
-    question: values.question,
-    options: values.answers,
+    setNotesOpen(false);
   };
 
-  setVideos((prev) =>
-    prev.map((video:any) =>
-      video.key === selectedVideo.key
-        ? {
-            ...video,
-            mcqs: [
-              ...(video.mcqs || []),
-              mcq,
-            ],
-          }
-        : video
-    )
-  );
+  const saveMcq = (values: any) => {
+    if (!selectedVideo) return;
 
-  setMcqOpen(false);
-};
+    const mcq = {
+      id: Date.now().toString(),
+      question: values.question,
+      options: values.answers,
+    };
+
+    setVideos((prev) =>
+      prev.map((video: any) =>
+        video.key === selectedVideo.key
+          ? {
+              ...video,
+              mcqs: [...(video.mcqs || []), mcq],
+            }
+          : video,
+      ),
+    );
+
+    setMcqOpen(false);
+  };
 
   const videoColumns: ColumnsType<VideoRecord> = [
     {
@@ -282,32 +274,32 @@ const saveMcq = (values: any) => {
       // align: "right",
       render: (_, record) => (
         <Space>
-      <Button
-        onClick={() => {
-          setSelectedVideo(record);
-          setNotesOpen(true);
-        }}
-      >
-        Upload Notes
-      </Button>
+          <Button
+            onClick={() => {
+              setSelectedVideo(record);
+              setNotesOpen(true);
+            }}
+          >
+            Upload Notes
+          </Button>
 
-      <Button
-        type="primary"
-        onClick={() => {
-          setSelectedVideo(record);
-          setMcqOpen(true);
-        }}
-      >
-        Add MCQ
-      </Button>
-        <Button
-          danger
-          type="text"
-          icon={<DeleteOutlined />}
-          onClick={() => removeVideo(record.key)}
-        >
-          Delete
-        </Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              setSelectedVideo(record);
+              setMcqOpen(true);
+            }}
+          >
+            Add MCQ
+          </Button>
+          <Button
+            danger
+            type="text"
+            icon={<DeleteOutlined />}
+            onClick={() => removeVideo(record.key)}
+          >
+            Delete
+          </Button>
         </Space>
       ),
     },
@@ -470,7 +462,7 @@ const saveMcq = (values: any) => {
                 <TextArea rows={4} placeholder="What will students learn?" />
               </Form.Item>
 
-              <Divider>Video parts</Divider>
+              {/* <Divider>Video parts</Divider>
               {selectedCategoryUsesEmi && (
                 <Alert
                   type="success"
@@ -479,9 +471,9 @@ const saveMcq = (values: any) => {
                   message="EMI unlock rule"
                   description="Each paid installment unlocks the matching video part from this category."
                 />
-              )}
+              )} */}
 
-              <Row gutter={[16, 16]}>
+              {/*<Row gutter={[16, 16]}>
                 {Array.from({ length: installmentCount }, (_, index) => (
                   <Col
                     xs={24}
@@ -509,7 +501,7 @@ const saveMcq = (values: any) => {
                     </Form.Item>
                   </Col>
                 ))}
-              </Row>
+              </Row>*/}
 
               <Space wrap>
                 <Button
@@ -585,13 +577,13 @@ const saveMcq = (values: any) => {
                         </Tag>
                       )}
                     </Space>
-                    <Space size={[0, 8]} wrap>
+                    {/* <Space size={[0, 8]} wrap>
                       {record.parts.map((part) => (
                         <Tag key={`${record.key}-${part.installment}`}>
                           Part {part.installment}: {part.title}
                         </Tag>
                       ))}
-                    </Space>
+                    </Space> */}
                   </Space>
                 ),
               }}
@@ -603,16 +595,16 @@ const saveMcq = (values: any) => {
         </Card>
       )}
       <NotesModal
-  open={notesOpen}
-  onCancel={() => setNotesOpen(false)}
-  onSave={saveNotes}
-/>
+        open={notesOpen}
+        onCancel={() => setNotesOpen(false)}
+        onSave={saveNotes}
+      />
 
-<McqModal
-  open={mcqOpen}
-  onCancel={() => setMcqOpen(false)}
-  onSave={saveMcq}
-/>
+      <McqModal
+        open={mcqOpen}
+        onCancel={() => setMcqOpen(false)}
+        onSave={saveMcq}
+      />
     </Space>
   );
 }

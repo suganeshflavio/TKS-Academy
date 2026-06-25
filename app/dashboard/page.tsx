@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   CheckCircleOutlined,
   ReadOutlined,
-  // FormOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  // SettingOutlined,
   UserOutlined,
   CreditCardOutlined,
   VideoCameraAddOutlined,
@@ -15,18 +13,17 @@ import {
 import type { MenuProps } from "antd";
 import CoursePage from "@/components/layout/Course";
 import Videos from "@/components/layout/Videos";
+import Userlist from "@/components/layout/Userlist";
+import PaymentList from "@/components/layout/PaymentList";
 import type { ClassRecord, VideoRecord } from "@/components/layout/types";
 import {
   Avatar,
-  Breadcrumb,
   Button,
   Drawer,
   Dropdown,
-  Flex,
   Grid,
   Layout,
   Menu,
-  Segmented,
   theme,
 } from "antd";
 
@@ -45,7 +42,7 @@ function getItem(
     icon,
     children,
     label,
-  } as MenuItem;
+  };
 }
 
 const items: MenuItem[] = [
@@ -74,8 +71,6 @@ const App: React.FC = () => {
   const screens = useBreakpoint();
   const [selectedMenu, setSelectedMenu] = useState("1");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [claimsData, setClaimsData] = useState<any[]>([]);
-  const [settingData, setsettingData] = useState([]);
   const [classes, setClasses] = useState<ClassRecord[]>([]);
   const [videos, setVideos] = useState<VideoRecord[]>([]);
 
@@ -90,14 +85,14 @@ const App: React.FC = () => {
           <Videos classes={classes} videos={videos} setVideos={setVideos} />
         );
 
+      case "4":
+        return <Userlist />;
+
+      case "5":
+        return <PaymentList />;
+
       // case "3":
       //   return <ApprovalSection claimsData={claimsData} refunction={fetchClaims} />;
-
-      // case "4":
-      //   return <Uploaduserlist />;
-
-      // case "5":
-      //   return <Setapprovelimit settingData={settingData} refunction={fetchSavesetting} />;
 
       default:
         return <CoursePage classes={classes} setClasses={setClasses} />;
@@ -134,22 +129,14 @@ const App: React.FC = () => {
         }}
       >
         <img
-          src={collapsed ? "/tks-academy-logo.svg" : "/tks-academy-logo.svg"}
+          src="/tks-academy-logo.svg"
           alt="logo"
           style={{
             maxWidth: collapsed ? 70 : 120,
             height: "auto",
             transition: "all 0.3s",
           }}
-          // width={32}
-          // height={32}
         />
-
-        {/* {!collapsed && (
-        <span style={{ marginLeft: 10 }}>
-          Expense Portal
-        </span>
-      )} */}
       </div>
 
       <Menu
@@ -163,11 +150,6 @@ const App: React.FC = () => {
     </>
   );
 
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
-
-  // const currentYear = new Date().getFullYear();
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -184,10 +166,6 @@ const App: React.FC = () => {
           placement="left"
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          bodyStyle={{
-            padding: 0,
-          }}
-          width={250}
         >
           <Menu
             mode="inline"

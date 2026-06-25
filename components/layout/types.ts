@@ -30,5 +30,5 @@ export type VideoRecord = {
   videoName: string;
   videoFileName?: string;
   description: string;
-  parts: VideoPart[];
+  // parts: VideoPart[];
 };
