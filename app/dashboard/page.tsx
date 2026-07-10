@@ -1,21 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   CheckCircleOutlined,
   ReadOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   UserOutlined,
-  CreditCardOutlined,
+  // CreditCardOutlined,
   VideoCameraAddOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import CoursePage from "@/components/layout/Course";
 import Videos from "@/components/layout/Videos";
 import Userlist from "@/components/layout/Userlist";
-import PaymentList from "@/components/layout/PaymentList";
-import type { ClassRecord, VideoRecord } from "@/components/layout/types";
+// import PaymentList from "@/components/layout/PaymentList";
 import {
   Avatar,
   Button,
@@ -24,9 +23,12 @@ import {
   Grid,
   Layout,
   Menu,
-  theme,
   Typography,
 } from "antd";
+import { useRouter } from "next/navigation";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logout } from "@/store/authSlice";
+import { getToken } from "@/store/authStorage";
 
 const { Header, Content, Sider } = Layout;
 
@@ -50,7 +52,7 @@ const items: MenuItem[] = [
   getItem("Course Details", "sub1", <ReadOutlined />, [
     getItem("Add Course", "1", <ReadOutlined />),
     getItem("Add Video", "2", <VideoCameraAddOutlined />),
-    getItem("Add Mcq", "3", <CheckCircleOutlined />),
+    // getItem("Add Mcq", "3", <CheckCircleOutlined />),
   ]),
   // getItem("Claim Form", "1", <FormOutlined />),
   // getItem("Claim Status", "2", <FileOutlined />),
@@ -62,42 +64,49 @@ const items: MenuItem[] = [
   // getItem("Approval Section", "3", <CheckCircleOutlined />),
   getItem("User Details", "sub2", <UserOutlined />, [
     getItem("User List", "4", <UserOutlined />),
-    getItem("Payment List", "5", <CreditCardOutlined />),
+    // getItem("Payment List", "5", <CreditCardOutlined />),
   ]),
 ];
 
 const App: React.FC = () => {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const token = useAppSelector((state) => state.auth.token);
   const [collapsed, setCollapsed] = useState(false);
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const [selectedMenu, setSelectedMenu] = useState("1");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [classes, setClasses] = useState<ClassRecord[]>([]);
-  const [videos, setVideos] = useState<VideoRecord[]>([]);
   const { Title } = Typography;
+
+  useEffect(() => {
+    const activeToken = token ?? getToken();
+
+    if (!activeToken) {
+      router.replace("/");
+    }
+  }, [router, token]);
 
   const isMobile = !screens.lg;
   const renderContent = () => {
     switch (selectedMenu) {
       case "1":
-        return <CoursePage classes={classes} setClasses={setClasses} />;
+        return <CoursePage />;
 
       case "2":
-        return (
-          <Videos classes={classes} videos={videos} setVideos={setVideos} />
-        );
+        return <Videos />;
 
       case "4":
         return <Userlist />;
 
-      case "5":
-        return <PaymentList />;
+      // case "5":
+      //   return <PaymentList />;
 
       // case "3":
       //   return <ApprovalSection claimsData={claimsData} refunction={fetchClaims} />;
 
       default:
-        return <CoursePage classes={classes} setClasses={setClasses} />;
+        return <CoursePage />;
     }
   };
   const userMenu = {
@@ -105,16 +114,19 @@ const App: React.FC = () => {
       {
         key: "1",
         label: "Profile",
+        disabled: true,
       },
       {
         key: "2",
         label: "Logout",
         danger: true,
+        disabled: false,
       },
     ],
     onClick: ({ key }: { key: string }) => {
       if (key === "2") {
-        console.log("Logout");
+        dispatch(logout());
+        router.replace("/");
       }
     },
   };

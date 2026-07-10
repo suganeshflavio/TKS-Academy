@@ -1,29 +1,53 @@
 "use client";
 
 import { Button, Card, Form, Input, Typography, message } from "antd";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAdminLoginMutation } from "@/store/features/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { setCredentials } from "@/store/authSlice";
+import { useEffect } from "react";
 
 const { Title, Text, Link } = Typography;
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const passwordPattern =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
-
 export default function LoginPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [adminLogin, { isLoading }] = useAdminLoginMutation();
 
-  const handleLogin = (values: { identifier: string; password: string }) => {
-    const email = values.identifier?.trim();
+  const handleLogin = async (values: { email: string; password: string }) => {
+    const email = values.email?.trim();
     const password = values.password?.trim();
+    const deviceId = "web"; // You can replace this with a unique device identifier if needed
+    try {
+      const response = await adminLogin({
+        email,
+        password,
+        deviceId,
+      }).unwrap();
 
-    if (email === "TKS@gmail.com" && password === "TkS@12345") {
+      const token =
+        response.token ?? response.accessToken ?? response.data?.token ?? response.data?.accessToken;
+
+      if (!token) {
+        message.error("Login failed: token not found in response.");
+        return;
+      }
+
+      dispatch(setCredentials({ token }));
+      message.success("Login successful.");
       router.push("/dashboard");
-      return;
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : "Invalid credentials");
     }
-
-    message.error("Invalid credentials. Please use the approved login details.");
   };
+
+  const adminToken = typeof window !== "undefined" ? sessionStorage.getItem("adminToken") : null;
+
+  useEffect(() => {
+    if (adminToken) {
+      router.push("/dashboard");
+    }
+  }, [adminToken, router]);
 
   return (
     <div
@@ -75,34 +99,19 @@ export default function LoginPage() {
           autoComplete="on"
         >
           <Form.Item
-            label="Username or email"
-            name="identifier"
+            label="Email"
+            name="email"
             rules={[
               {
                 required: true,
-                message: "Please enter your username or email.",
-              },
-              {
-                validator: (_, value: string | undefined) => {
-                  if (
-                    !value ||
-                    !value.includes("@") ||
-                    emailPattern.test(value)
-                  ) {
-                    return Promise.resolve();
-                  }
-
-                  return Promise.reject(
-                    new Error("Please enter a valid email address."),
-                  );
-                },
+                message: "Please enter your email.",
               },
             ]}
           >
             <Input
               size="large"
-              placeholder="Enter username or email"
-              autoComplete="username"
+              placeholder="Enter email"
+              autoComplete="email"
             />
           </Form.Item>
 
@@ -113,11 +122,6 @@ export default function LoginPage() {
               {
                 required: true,
                 message: "Please enter your password.",
-              },
-              {
-                pattern: passwordPattern,
-                message:
-                  "Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character.",
               },
             ]}
           >
@@ -133,6 +137,7 @@ export default function LoginPage() {
             size="large"
             block
             htmlType="submit"
+            loading={isLoading}
             style={{
               height: 48,
               fontWeight: 600,
@@ -142,7 +147,7 @@ export default function LoginPage() {
             Sign in
           </Button>
         </Form>
-        <Text
+        {/* <Text
           style={{
             display: "block",
             marginBottom: 16,
@@ -151,7 +156,7 @@ export default function LoginPage() {
           }}
         >
           Already have an account? <Link>Sign up</Link>
-        </Text>
+        </Text> */}
       </Card>
     </div>
   );

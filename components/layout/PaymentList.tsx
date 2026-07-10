@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Space, Table, Tag, Typography } from "antd";
+import { Card, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 const { Title, Text } = Typography;

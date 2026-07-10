@@ -1,325 +1,374 @@
 "use client";
 
-import { Button, Card, Progress, Space, Table, Tag, Typography } from "antd";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { CheckCircleOutlined, FileDoneOutlined } from "@ant-design/icons";
-import StudentDetailModal, { type StudentRecord } from "@/components/modals/StudentDetailModal";
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { skipToken } from "@reduxjs/toolkit/query";
+import {
+  type UserItem,
+  useCreateUserMutation,
+  useGetUserByIdQuery,
+  useGetUsersQuery,
+  useUpdateUserMutation,
+} from "@/store/features/usersApi";
 
 const { Title, Text } = Typography;
 
-type CourseInfo = {
-    title: string;
-    progress: number;
-    access: "demo" | "paid";
-    lastAccess: string;
+type UserFormValues = {
+  name: string;
+  email: string;
+  mobile?: string;
+  role?: string;
+  isActive?: boolean;
+  password?: string;
+  confirmPassword?: string;
 };
 
-type SessionRecord = {
-    date: string;
-    topic: string;
-    duration: string;
-    status: "Completed" | "Scheduled" | "Missed";
-    score: string;
+const pickUsers = (payload: unknown): UserItem[] => {
+  if (Array.isArray(payload)) {
+    return payload as UserItem[];
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const data = payload as Record<string, unknown>;
+  const directCandidates = [data.data, data.items, data.results, data.rows, data.users];
+
+  for (const candidate of directCandidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as UserItem[];
+    }
+  }
+
+  if (data.data && typeof data.data === "object") {
+    const nested = data.data as Record<string, unknown>;
+    const nestedCandidates = [nested.data, nested.items, nested.results, nested.rows, nested.users];
+
+    for (const candidate of nestedCandidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as UserItem[];
+      }
+    }
+  }
+
+  return [];
 };
 
-type StudentReport = {
-    label: string;
-    value: string;
+const pickTotal = (payload: unknown, fallbackLength: number) => {
+  if (Array.isArray(payload)) {
+    return payload.length;
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return fallbackLength;
+  }
+
+  const data = payload as Record<string, unknown>;
+
+  if (typeof data.total === "number") {
+    return data.total;
+  }
+
+  if (typeof data.count === "number") {
+    return data.count;
+  }
+
+  if (data.data && typeof data.data === "object") {
+    const nested = data.data as Record<string, unknown>;
+
+    if (typeof nested.total === "number") {
+      return nested.total;
+    }
+
+    if (typeof nested.count === "number") {
+      return nested.count;
+    }
+  }
+
+  return fallbackLength;
 };
-
-
-const students: StudentRecord[] = [
-    {
-        key: "student-1",
-        name: "Aarav Kumar",
-        email: "aarav.kumar@example.com",
-        phone: "+91 98765 43210",
-        grade: "10",
-        enrolledCourse: "Web Development Bootcamp",
-        status: "Active",
-        progress: 78,
-        attendance: "94%",
-        lastActive: "2026-06-23",
-        enrollmentDate: "2026-01-08",
-        guardian: "Neha Kumar",
-        location: "Bengaluru, India",
-        availableCourses: [
-            {
-                title: "Full Stack JavaScript",
-                progress: 42,
-                access: "demo",
-                lastAccess: "2026-06-20",
-            },
-            {
-                title: "React & Next.js Essentials",
-                progress: 68,
-                access: "paid",
-                lastAccess: "2026-06-22",
-            },
-        ],
-        sessionHistory: [
-            {
-                date: "2026-06-22",
-                topic: "React Hooks",
-                duration: "45 mins",
-                status: "Completed",
-                score: "88%",
-            },
-            {
-                date: "2026-06-19",
-                topic: "CSS Layouts",
-                duration: "50 mins",
-                status: "Completed",
-                score: "92%",
-            },
-            {
-                date: "2026-06-17",
-                topic: "JavaScript Fundamentals",
-                duration: "60 mins",
-                status: "Completed",
-                score: "84%",
-            },
-        ],
-        report: [
-            { label: "Academic Score", value: "85%" },
-            { label: "Attendance", value: "94%" },
-            { label: "Assignments", value: "8 / 10" },
-            { label: "Next Goal", value: "Complete React module" },
-        ],
-    },
-    {
-        key: "student-2",
-        name: "Sara Fernandes",
-        email: "sara.fernandes@example.com",
-        phone: "+91 91234 56780",
-        grade: "12",
-        enrolledCourse: "Data Science Fundamentals",
-        status: "Active",
-        progress: 92,
-        attendance: "98%",
-        lastActive: "2026-06-24",
-        enrollmentDate: "2026-02-14",
-        guardian: "Priya Fernandes",
-        location: "Mumbai, India",
-        availableCourses: [
-            {
-                title: "Python for Data Science",
-                progress: 100,
-                access: "paid",
-                lastAccess: "2026-06-24",
-            },
-            {
-                title: "Machine Learning Basics",
-                progress: 55,
-                access: "demo",
-                lastAccess: "2026-06-18",
-            },
-        ],
-        sessionHistory: [
-            {
-                date: "2026-06-24",
-                topic: "Data Visualization",
-                duration: "40 mins",
-                status: "Completed",
-                score: "95%",
-            },
-            {
-                date: "2026-06-20",
-                topic: "Pandas & NumPy",
-                duration: "55 mins",
-                status: "Completed",
-                score: "90%",
-            },
-            {
-                date: "2026-06-17",
-                topic: "Statistics Review",
-                duration: "50 mins",
-                status: "Completed",
-                score: "88%",
-            },
-        ],
-        report: [
-            { label: "Academic Score", value: "91%" },
-            { label: "Attendance", value: "98%" },
-            { label: "Assignments", value: "9 / 10" },
-            { label: "Next Goal", value: "Finish ML project" },
-        ],
-    },
-    {
-        key: "student-3",
-        name: "Neel Patel",
-        email: "neel.patel@example.com",
-        phone: "+91 90123 45678",
-        grade: "11",
-        enrolledCourse: "UI/UX Design Course",
-        status: "At Risk",
-        progress: 61,
-        attendance: "82%",
-        lastActive: "2026-06-21",
-        enrollmentDate: "2026-03-10",
-        guardian: "Rina Patel",
-        location: "Ahmedabad, India",
-        availableCourses: [
-            {
-                title: "Design Thinking",
-                progress: 48,
-                access: "demo",
-                lastAccess: "2026-06-19",
-            },
-            {
-                title: "Figma UI Workshop",
-                progress: 72,
-                access: "paid",
-                lastAccess: "2026-06-21",
-            },
-        ],
-        sessionHistory: [
-            {
-                date: "2026-06-21",
-                topic: "Prototyping Basics",
-                duration: "35 mins",
-                status: "Completed",
-                score: "79%",
-            },
-            {
-                date: "2026-06-18",
-                topic: "User Research",
-                duration: "45 mins",
-                status: "Missed",
-                score: "0%",
-            },
-            {
-                date: "2026-06-15",
-                topic: "Visual Hierarchy",
-                duration: "40 mins",
-                status: "Completed",
-                score: "82%",
-            },
-        ],
-        report: [
-            { label: "Academic Score", value: "73%" },
-            { label: "Attendance", value: "82%" },
-            { label: "Assignments", value: "6 / 10" },
-            { label: "Next Goal", value: "Improve session attendance" },
-        ],
-    },
-];
 
 export default function Userlist() {
-    const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+  const [form] = Form.useForm<UserFormValues>();
+  const [searchText, setSearchText] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-    const handleOpenModal = (student: StudentRecord) => {
-        setSelectedStudent(student);
-        setIsModalOpen(true);
+  const { data, isFetching, refetch } = useGetUsersQuery({
+    page,
+    limit,
+    search: searchText || undefined,
+  });
+
+  const userDetailArgs = editingId ?? skipToken;
+  const { data: userDetail, isFetching: isLoadingUserDetail } = useGetUserByIdQuery(userDetailArgs);
+
+  const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
+  const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+
+  const users = useMemo(() => pickUsers(data), [data]);
+  const total = useMemo(() => pickTotal(data, users.length), [data, users.length]);
+
+  useEffect(() => {
+    if (!userDetail || !editingId) {
+      return;
+    }
+
+    form.setFieldsValue({
+      name: userDetail.name ?? "",
+      email: userDetail.email ?? "",
+      mobile: userDetail.mobile,
+      role: userDetail.role,
+      isActive: userDetail.isActive,
+      password: undefined,
+      confirmPassword: undefined,
+    });
+  }, [editingId, form, userDetail]);
+
+  const resetModal = () => {
+    setOpen(false);
+    setEditingId(null);
+    form.resetFields();
+  };
+
+  const onSubmit = async (values: UserFormValues) => {
+      console.log("values",values);
+    const payload: Partial<UserItem> = {
+
+      name: values.name.trim(),
+      email: values.email.trim(),
+      mobile: values.mobile?.trim(),
+    //   role: values.role,
+    //   isActive: values?.isActive,
     };
 
-    const handleCloseModal = () => {
-        setSelectedStudent(null);
-        setIsModalOpen(false);
-    };
+    if (values.password) {
+      payload.password = values.password;
+    }
 
-    const columns: ColumnsType<StudentRecord> = [
-        {
-            title: "Student",
-            dataIndex: "name",
-            key: "name",
-            render: (_, record) => (
-                <div>
-                    <Text strong>{record.name}</Text>
-                    <br />
-                    <Text type="secondary">{record.email}</Text>
-                </div>
-            ),
-        },
-        {
-            title: "Course",
-            dataIndex: "enrolledCourse",
-            key: "enrolledCourse",
-        },
-        {
-            title: "Grade",
-            dataIndex: "grade",
-            key: "grade",
-        },
-        {
-            title: "Attendance",
-            dataIndex: "attendance",
-            key: "attendance",
-        },
-        {
-            title: "Status",
-            dataIndex: "status",
-            key: "status",
-            render: (status: StudentRecord["status"]) => {
-                let color: string | undefined;
-                if (status === "Active") {
-                    color = "green";
-                } else if (status === "At Risk") {
-                    color = "orange";
-                }
-                return <Tag color={color}>{status}</Tag>;
-            },
-        },
-        {
-            title: "Progress",
-            dataIndex: "progress",
-            key: "progress",
-            render: (value: number) => <Progress percent={value} size="small" />,
-        },
-        {
-            title: "Last Active",
-            dataIndex: "lastActive",
-            key: "lastActive",
-        },
-        {
-            title: "Details",
-            key: "details",
-            render: (_, record) => (
-                <Button type="primary" onClick={() => handleOpenModal(record)}>
-                    View Details
-                </Button>
-            ),
-        },
-    ];
+    try {
+      if (editingId) {
+        await updateUser({ id: editingId, body: payload }).unwrap();
+        message.success("User updated successfully.");
+      } else {
+        await createUser(payload).unwrap();
+        message.success("User created successfully.");
+      }
 
-    return (
-        <div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
-                <Card style={{ borderRadius: 8 }}>
-                    <Space
-                        align="center"
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            marginBottom: 16,
-                        }}
-                        wrap
-                    >
-                        <div>
-                            <Title level={4} style={{ marginTop: 0 }}>
-                                Student Dashboard
-                            </Title>
-                            <Text type="secondary">
-                                View all student details, enrolled courses, session history, and reports.
-                            </Text>
-                        </div>
-                        <Space>
-                            <Tag icon={<CheckCircleOutlined />} color="success">
-                                Active students
-                            </Tag>
-                            <Tag icon={<FileDoneOutlined />} color="processing">
-                                Reports ready
-                            </Tag>
-                        </Space>
-                    </Space>
+      resetModal();
+      refetch();
+    } catch {
+      message.error("Unable to save user.");
+    }
+  };
 
-                    <Table columns={columns} dataSource={students} pagination={{ pageSize: 5 }} scroll={{ x: 900 }} />
-                </Card>
-            </div>
-
-            <StudentDetailModal open={isModalOpen} student={selectedStudent} onCancel={handleCloseModal} />
+  const columns: ColumnsType<UserItem> = [
+    {
+      title: "User",
+      key: "user",
+      render: (_, record) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <Text strong>{record.name ?? "-"}</Text>
+          <Text type="secondary">{record.email ?? "-"}</Text>
         </div>
-    );
+      ),
+    },
+    {
+      title: "Phone",
+      key: "mobile",
+      dataIndex: "mobile",
+      render: (value: string | undefined) => value ?? "-",
+    },
+    {
+      title: "Role",
+      key: "role",
+      render: (_, record) => <Tag>{record.role ?? "student"}</Tag>,
+    },
+    {
+      title: "Status",
+      key: "status",
+      render: (_, record) => <Tag color={record.isActive ? "green" : "default"}>{record.isActive ? "Active" : "Inactive"}</Tag>,
+    },
+    {
+      title: "Action",
+      key: "action",
+      align: "right",
+      render: (_, record) => (
+        <>
+          <Button
+            icon={<EditOutlined />}
+            variant="outlined"
+            disabled
+            onClick={() => {
+              setEditingId(record.id);
+              setOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+          className="ml-2"
+          disabled
+            icon={<DeleteOutlined />}
+            variant="filled"
+            color="danger"
+          //   onClick={() => {
+          //     setDeletingId(record.id);
+          //     setDeleteModalOpen(true);
+          //   }}
+          >
+            Delete
+          </Button>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <Card style={{ borderRadius: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
+        <Space align="center" style={{ display: "flex", justifyContent: "space-between" }} wrap>
+          <div>
+            <Title level={4} style={{ margin: 0 }}>
+              Users List
+            </Title>
+            <Text type="secondary">Search, paginate, create, and edit users.</Text>
+          </div>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+            Add User
+          </Button>
+        </Space>
+
+        <Input
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="Search user by name or email"
+          value={searchText}
+          onChange={(event) => {
+            setPage(1);
+            setSearchText(event.target.value);
+          }}
+        />
+
+        <Table
+          rowKey={(record) => record.id}
+          columns={columns}
+          dataSource={users}
+          loading={isFetching}
+          pagination={{
+            current: page,
+            pageSize: limit,
+            total,
+            showSizeChanger: true,
+            onChange: (nextPage, nextPageSize) => {
+              setPage(nextPage);
+              setLimit(nextPageSize);
+            },
+          }}
+          scroll={{ x: 940 }}
+        />
+      </div>
+
+      <Modal
+        title={editingId ? "Edit User" : "Add User"}
+        open={open}
+        onCancel={resetModal}
+        onOk={() => form.submit()}
+        confirmLoading={isCreating || isUpdating || isLoadingUserDetail}
+        destroyOnHidden
+      >
+        <Form form={form} layout="vertical" requiredMark={false} onFinish={onSubmit}>
+          <Form.Item name="name" label="Name" rules={[{ required: true, message: "Name is required." }]}>
+            <Input placeholder="Enter name" />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: "Email is required." },
+              { type: "email", message: "Please enter a valid email." },
+            ]}
+          >
+            <Input placeholder="Enter email" />
+          </Form.Item>
+
+          <Form.Item name="mobile" label="Phone" rules={[{ pattern: /^\d{10}$/, message: "Please enter a valid 10-digit phone number." }]}>
+            <Input placeholder="Optional phone" />
+          </Form.Item>
+
+          {/* <Form.Item name="role" label="Role">
+            <Select
+              allowClear
+              options={[
+                { label: "Student", value: "student" },
+                { label: "Admin", value: "admin" },
+                { label: "Mentor", value: "mentor" },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item name="status" label="Status">
+            <Select
+              allowClear
+              options={[
+                { label: "Active", value: "active" },
+                { label: "Inactive", value: "inactive" },
+              ]}
+            />
+          </Form.Item> */}
+
+          <Form.Item
+            name="password"
+            label={editingId ? "New Password" : "Password"}
+            rules={editingId ? [] : [{ required: true, message: "Password is required." }]}
+          >
+            <Input.Password placeholder={editingId ? "Optional new password" : "Enter password"} />
+          </Form.Item>
+
+          <Form.Item
+            name="confirmPassword"
+            label={editingId ? "Confirm New Password" : "Confirm Password"}
+            dependencies={["password"]}
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const password = getFieldValue("password");
+
+                  if (!password && !value) {
+                    return Promise.resolve();
+                  }
+
+                  if (password === value) {
+                    return Promise.resolve();
+                  }
+
+                  return Promise.reject(new Error("Password and confirm password must match."));
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="Re-enter password" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Card>
+  );
 }

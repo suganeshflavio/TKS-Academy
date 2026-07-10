@@ -1,658 +1,458 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
-  Col,
-  Empty,
   Form,
   Input,
   InputNumber,
+  Modal,
   Radio,
-  Row,
   Select,
   Space,
-  Switch,
   Table,
   Tag,
   Typography,
-  Upload,
+  message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { skipToken } from "@reduxjs/toolkit/query";
 import {
-  DeleteOutlined,
-  FileImageOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
-import type { AccessType, ClassRecord, PaymentType } from "./types";
+  type CourseItem,
+  useCreateCourseMutation,
+  useGetCourseByIdQuery,
+  useGetCoursesQuery,
+  useUpdateCourseMutation,
+} from "@/store/features/coursesApi";
 
 const { Title, Text } = Typography;
 
-type UploadValue = {
-  name?: string;
-}[];
-
-type ClassFormValues = {
-  className: string;
-  subjectName: string;
-  banner?: UploadValue;
-  accessType: AccessType;
-  paymentType?: PaymentType;
+type CourseFormValues = {
+  courseName: string;
+  subjects: string[];
+  accessType?: "free" | "paid";
+  paymentType?: "full" | "emi";
   price?: number;
   strikePrice?: number;
   validityMonths?: number;
   installments?: number;
 };
 
-type CategoriesProps = {
-  classes: ClassRecord[];
-  setClasses: React.Dispatch<React.SetStateAction<ClassRecord[]>>;
-};
-
-const validityOptions = [
-  { label: "1 month", value: 1 },
-  { label: "2 months", value: 2 },
-  { label: "3 months", value: 3 },
-  { label: "6 months", value: 6 },
-  { label: "12 months", value: 12 },
-  { label: "Lifetime", value: 0 },
-];
-
-const normalizeUpload = (
-  event: UploadValue | { fileList?: UploadValue },
-): UploadValue => {
-  if (Array.isArray(event)) {
-    return event;
+const pickCourseList = (payload: unknown): CourseItem[] => {
+  if (Array.isArray(payload)) {
+    return payload as CourseItem[];
   }
 
-  return event?.fileList ?? [];
-};
-
-const formatValidity = (validityMonths?: number) => {
-  if (typeof validityMonths !== "number") {
-    return "";
+  if (!payload || typeof payload !== "object") {
+    return [];
   }
 
-  return validityMonths === 0 ? "Lifetime" : `${validityMonths} months`;
-};
+  const data = payload as Record<string, unknown>;
+  const directCandidates = [
+    data.data,
+    data.items,
+    data.results,
+    data.rows,
+    data.courses,
+  ];
 
-export default function Course({ classes, setClasses }: CategoriesProps) {
-  const [form] = Form.useForm<ClassFormValues>();
-  const [subjects, setSubjects] = useState<string[]>([]);
-
-  const subjectName = Form.useWatch("subjectName", form);
-  const className = Form.useWatch("className", form);
-  const accessType = Form.useWatch("accessType", form);
-  const paymentType = Form.useWatch("paymentType", form);
-  const [isFormVisible, setIsFormVisible] = useState(false);
-  const showPaidFields = accessType === "paid";
-  const showEmiFields = accessType === "paid" && paymentType === "emi";
-  const canSaveClass = Boolean(className?.trim()) && subjects.length > 0;
-  const enableEmi = Form.useWatch("enableEmi", form);
-  const price = Form.useWatch("price", form);
-  const validityMonths = Form.useWatch("installments", form);
-  const calculateInstallments = (totalPrice: number, months: number) => {
-    if (!months || months <= 1) {
-      return [totalPrice];
+  for (const candidate of directCandidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as CourseItem[];
     }
+  }
 
-    // First installment rounded up to nearest 500
-    const firstInstallment = Math.ceil(totalPrice / months / 500) * 500;
-
-    const remaining = totalPrice - firstInstallment;
-
-    const installmentAmount = Math.floor(remaining / (months - 1));
-
-    const installments = [
-      firstInstallment,
-      ...Array(months - 1).fill(installmentAmount),
+  if (data.data && typeof data.data === "object") {
+    const nested = data.data as Record<string, unknown>;
+    const nestedCandidates = [
+      nested.data,
+      nested.items,
+      nested.results,
+      nested.rows,
+      nested.courses,
     ];
 
-    // Fix remainder
-    const total = installments.reduce((a, b) => a + b, 0);
+    for (const candidate of nestedCandidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as CourseItem[];
+      }
+    }
+  }
 
-    installments[installments.length - 1] += totalPrice - total;
+  return [];
+};
 
-    return installments;
-  };
+const pickTotal = (payload: unknown, fallbackLength: number) => {
+  if (Array.isArray(payload)) {
+    return payload.length;
+  }
 
-  const installmentData =
-    enableEmi && price && validityMonths
-      ? calculateInstallments(price, validityMonths)
-      : [];
+  if (!payload || typeof payload !== "object") {
+    return fallbackLength;
+  }
 
-  const openVideoForm = (classKey?: string) => {
-    setIsFormVisible(true);
-    form.resetFields();
-    // form.setFieldsValue({ classKey });
-  };
+  const data = payload as Record<string, unknown>;
 
-  const addSubject = () => {
-    const nextSubject = form.getFieldValue("subjectName")?.trim();
+  if (typeof data.total === "number") {
+    return data.total;
+  }
 
-    if (!nextSubject) {
-      form.setFields([
-        {
-          name: "subjectName",
-          errors: ["Please enter a subject."],
-        },
-      ]);
+  if (typeof data.count === "number") {
+    return data.count;
+  }
+
+  if (data.data && typeof data.data === "object") {
+    const nested = data.data as Record<string, unknown>;
+
+    if (typeof nested.total === "number") {
+      return nested.total;
+    }
+
+    if (typeof nested.count === "number") {
+      return nested.count;
+    }
+  }
+
+  return fallbackLength;
+};
+
+export default function CoursePage() {
+  const [form] = Form.useForm<CourseFormValues>();
+  const [searchText, setSearchText] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const { data, isFetching, refetch } = useGetCoursesQuery({
+    page,
+    limit,
+    search: searchText || undefined,
+  });
+
+  const courseDetailArgs = editingId ?? skipToken;
+  const { data: courseDetail, isFetching: isLoadingCourseDetail } =
+    useGetCourseByIdQuery(courseDetailArgs);
+
+  const [createCourse, { isLoading: isCreating }] = useCreateCourseMutation();
+  const [updateCourse, { isLoading: isUpdating }] = useUpdateCourseMutation();
+
+  const courses = useMemo(() => pickCourseList(data), [data]);
+  const total = useMemo(
+    () => pickTotal(data, courses.length),
+    [courses.length, data],
+  );
+
+  useEffect(() => {
+    if (!courseDetail || !editingId) {
       return;
     }
 
-    const isDuplicate = subjects.some(
-      (subject) => subject.toLowerCase() === nextSubject.toLowerCase(),
-    );
-
-    if (isDuplicate) {
-      form.setFields([
-        {
-          name: "subjectName",
-          errors: ["This subject is already added."],
-        },
-      ]);
-      return;
-    }
-
-    setSubjects((currentSubjects) => [...currentSubjects, nextSubject]);
-    form.setFieldValue("subjectName", "");
-    form.setFields([{ name: "subjectName", errors: [] }]);
-  };
-
-  const removePendingSubject = (subjectToRemove: string) => {
-    setSubjects((currentSubjects) =>
-      currentSubjects.filter((subject) => subject !== subjectToRemove),
-    );
-  };
-
-  const removeSavedClass = (classKey: string) => {
-    setClasses((currentClasses) =>
-      currentClasses.filter((classItem) => classItem.key !== classKey),
-    );
-  };
-
-  const removeSavedSubject = (classKey: string, subjectToRemove: string) => {
-    setClasses((currentClasses) =>
-      currentClasses.map((classItem) =>
-        classItem.key === classKey
-          ? {
-            ...classItem,
-            subjects: classItem?.subjects?.filter(
-              (subject) => subject !== subjectToRemove,
-            ),
-          }
-          : classItem,
-      ),
-    );
-  };
-
-  const saveClass = (values: ClassFormValues) => {
-    const nextClassName = values.className?.trim();
-    console.log("values", values);
-
-    if (
-      !nextClassName
-      // || subjects.length === 0
-    ) {
-      return;
-    }
-
-    setClasses((currentClasses) => [
-      ...currentClasses,
-      {
-        key: `${Date.now()}-${nextClassName}`,
-        className: nextClassName,
-        subjects: subjects ?? [],
-        bannerFileName: values.banner?.[0]?.name,
-        accessType: values.accessType,
-        paymentType:
-          values.accessType === "paid" ? values.paymentType : undefined,
-        price: values.accessType === "paid" ? values.price : undefined,
-        strikePrice:
-          values.accessType === "paid" ? values.strikePrice : undefined,
-        validityMonths:
-          values.accessType === "paid" ? values.validityMonths : undefined,
-        installments:
-          values.accessType === "paid" && values.paymentType === "emi"
-            ? values.installments
-            : undefined,
-      },
-    ]);
-
-    setSubjects([]);
-    form.resetFields();
-    setIsFormVisible(false);
     form.setFieldsValue({
-      accessType: "demo",
-      paymentType: "full",
-      installments: 1,
+      courseName:
+        courseDetail.courseName ??
+        courseDetail.name ??
+        courseDetail.title ??
+        "",
+      subjects:
+        courseDetail.subjects ??
+        (courseDetail.subject ? [courseDetail.subject] : []),
+      accessType: courseDetail.accessType ?? "free",
+      paymentType: courseDetail.paymentType,
+      price: courseDetail.price,
+      strikePrice: courseDetail.strikePrice,
+      validityMonths: courseDetail.validityMonths,
+      installments: courseDetail.installments,
     });
+  }, [courseDetail, editingId, form]);
+
+  const resetModal = () => {
+    setOpen(false);
+    setEditingId(null);
+    form.resetFields();
   };
 
-  const columns: ColumnsType<ClassRecord> = [
+  const onSubmit = async (values: CourseFormValues) => {
+    const cleanSubjects = values.subjects
+      .map((subject) => subject.trim())
+      .filter((subject) => subject.length > 0);
+
+    const payload = {
+      courseName: values.courseName.trim(),
+      subjects: cleanSubjects,
+    //   accessType: values.accessType,
+    //   paymentType:
+    //     values.accessType === "paid"
+    //       ? (values.paymentType ?? "full")
+    //       : undefined,
+    //   price: values.accessType === "paid" ? values.price : undefined,
+    //   strikePrice:
+    //     values.accessType === "paid" ? values.strikePrice : undefined,
+    //   validityMonths:
+    //     values.accessType === "paid" ? values.validityMonths : undefined,
+    //   installments:
+    //     values.accessType === "paid" && values.paymentType === "emi"
+    //       ? values.installments
+    //       : undefined,
+    };
+
+    try {
+      if (editingId) {
+        await updateCourse({ courseId: editingId, body: payload }).unwrap();
+        message.success("Course updated successfully.");
+      } else {
+        await createCourse(payload).unwrap();
+        message.success("Course created successfully.");
+      }
+
+      resetModal();
+      refetch();
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to save course.");
+    }
+  };
+
+  const columns: ColumnsType<CourseItem> = [
     {
       title: "Course",
-      dataIndex: "className",
-      key: "className",
-      width: 180,
-      render: (value: string, record) => (
-        <Space direction="vertical" size={2}>
-          <Text strong>{value}</Text>
-          {record.bannerFileName && (
-            <Tag icon={<FileImageOutlined />}>{record.bannerFileName}</Tag>
-          )}
-        </Space>
+      key: "courseName",
+      render: (_, record) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <Text strong>
+            {record.courseName ?? record.name ?? record.title ?? "-"}
+          </Text>
+          {/* <Text type="secondary">ID: {record.id}</Text> */}
+        </div>
       ),
     },
     {
-      title: "Subjects",
-      dataIndex: "subjects",
-      key: "subjects",
-      render: (classSubjects: string[], record) =>
-        classSubjects.length > 0 ? (
-          <Space size={[0, 8]} wrap>
-            {classSubjects.map((subject) => (
-              <Tag
-                key={subject}
-                closable
-                onClose={(event) => {
-                  event.preventDefault();
-                  removeSavedSubject(record.key, subject);
-                }}
-                style={{ marginInlineEnd: 0 }}
-              >
-                {subject}
-              </Tag>
-            ))}
-          </Space>
-        ) : (
-          <Text type="secondary">No subjects</Text>
-        ),
+      title: "Subject",
+      key: "subject",
+      render: (_, record) => {
+        const subjects =
+          record.subjects ?? (record.subject ? [record.subject] : []);
+
+        return subjects.length > 0 ? subjects.join(", ") : "-";
+      },
     },
+    // {
+    //   title: "Access",
+    //   key: "access",
+    //   render: (_, record) => (
+    //     <Space size={4}>
+    //       <Tag color={record.accessType === "paid" ? "blue" : "green"}>{record.accessType ?? "free"}</Tag>
+    //       {record.accessType === "paid" && record.paymentType ? <Tag>{record.paymentType}</Tag> : null}
+    //     </Space>
+    //   ),
+    // },
     {
-      title: "Access",
-      key: "access",
-      width: 220,
-      render: (_, record) =>
-        record.accessType === "demo" ? (
-          <Tag color="green">Demo</Tag>
-        ) : (
-          <Space direction="vertical" size={2}>
-            <Tag color="blue">
-              {record.paymentType === "emi" ? "Paid - EMI" : "Paid - Full"}
-            </Tag>
-            <Text type="secondary">
-              Rs. {record.price}
-              {record.strikePrice ? (
-                <>
-                  {" "}
-                  <Text delete type="secondary">
-                    Rs. {record.strikePrice}
-                  </Text>
-                </>
-              ) : null}
-            </Text>
-            <Text type="secondary">
-              {formatValidity(record.validityMonths)}
-            </Text>
-            {record.paymentType === "emi" && (
-              <Text type="secondary">{record.installments} installments</Text>
-            )}
-          </Space>
-        ),
+      title: "Status",
+      key: "isActive",
+      render: (_, record) => {
+        // if (record.accessType !== "paid") {
+        //   return "-";
+        // }
+        return (
+          <Tag color={record.isActive ? "green" : "red"}>
+            {record.isActive ? "Active" : "Inactive"}
+          </Tag>
+        );
+      },
     },
     {
       title: "Action",
       key: "action",
-      width: 110,
       align: "right",
       render: (_, record) => (
         <Button
-          danger
-          type="text"
-          icon={<DeleteOutlined />}
-          onClick={() => removeSavedClass(record.key)}
+          icon={<EditOutlined />}
+          disabled
+          onClick={() => {
+            setEditingId(record.id);
+            setOpen(true);
+          }}
         >
-          Delete
+          Edit
         </Button>
       ),
     },
   ];
 
+//   const accessType = Form.useWatch("accessType", form);
+//   const paymentType = Form.useWatch("paymentType", form);
+
   return (
-    <Space direction="vertical" size={24} style={{ width: "100%" }}>
-      {isFormVisible ? (
-        <>
+    <Card style={{ borderRadius: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          width: "100%",
+        }}
+      >
+        <Space
+          align="center"
+          style={{ display: "flex", justifyContent: "space-between" }}
+          wrap
+        >
           <div>
-            <Title level={3} style={{ marginBottom: 4 }}>
-              Add Course
-            </Title>
-
-            <Text type="secondary">
-              Create a Course, upload its banner, attach subjects, and configure
-              its access.
-            </Text>
-          </div>
-
-          <Card style={{ borderRadius: 8 }}>
-            <Form
-              form={form}
-              layout="vertical"
-              requiredMark={false}
-              initialValues={{
-                accessType: "demo",
-                paymentType: "full",
-                installments: 1,
-              }}
-              onFinish={saveClass}
-            >
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Course name"
-                    name="className"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Please enter a Course name.",
-                      },
-                    ]}
-                  >
-                    <Input size="large" placeholder="Example: Class 10" />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Course banner"
-                    name="banner"
-                    valuePropName="fileList"
-                    getValueFromEvent={normalizeUpload}
-                    rules={[
-                      {
-                        required: true,
-                        message: "Please upload a Course banner.",
-                      },
-                    ]}
-                  >
-                    <Upload
-                      listType="picture"
-                      maxCount={1}
-                      accept="image/*"
-                      beforeUpload={() => false}
-                    >
-                      <Button icon={<FileImageOutlined />}>
-                        Upload banner
-                      </Button>
-                    </Upload>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item label="Subject" name="subjectName">
-                <Space.Compact style={{ width: "100%" }}>
-                  <Input
-                    size="large"
-                    placeholder={
-                      subjects.length > 0
-                        ? "Add another subject"
-                        : "Example: Mathematics"
-                    }
-                    prefix={
-                      subjects.length > 0 ? (
-                        <Space size={[4, 4]} wrap>
-                          {subjects.map((subject) => (
-                            <Tag
-                              key={subject}
-                              closable
-                              onClose={(event) => {
-                                event.preventDefault();
-                                removePendingSubject(subject);
-                              }}
-                              style={{ marginInlineEnd: 0 }}
-                            >
-                              {subject}
-                            </Tag>
-                          ))}
-                        </Space>
-                      ) : null
-                    }
-                    onPressEnter={(event) => {
-                      event.preventDefault();
-                      addSubject();
-                    }}
-                  />
-                  <Button
-                    size="large"
-                    icon={<PlusOutlined />}
-                    onClick={addSubject}
-                    disabled={!subjectName?.trim()}
-                  >
-                    Add subject
-                  </Button>
-                </Space.Compact>
-              </Form.Item>
-
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Access"
-                    name="accessType"
-                    rules={[
-                      { required: true, message: "Please choose access type." },
-                    ]}
-                  >
-                    <Radio.Group
-                      optionType="button"
-                      buttonStyle="solid"
-                      onChange={(e) => {
-                        if (e.target.value === "paid") {
-                          form.setFieldValue("paymentType", "full");
-                        } else {
-                          form.setFieldsValue({
-                            paymentType: undefined,
-                            price: undefined,
-                            strikePrice: undefined,
-                            validityMonths: undefined,
-                            installments: undefined,
-                          });
-                        }
-                      }}
-                      options={[
-                        { label: "Demo", value: "demo" },
-                        { label: "Paid", value: "paid" },
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-
-                {showPaidFields && (
-                  // <Col xs={24} md={12}>
-                  //   <Form.Item
-                  //     label="Payment mode"
-                  //     name="paymentType"
-                  //     rules={[
-                  //       {
-                  //         required: true,
-                  //         message: "Please choose payment mode.",
-                  //       },
-                  //     ]}
-                  //   >
-                  //     <Radio.Group
-                  //       optionType="button"
-                  //       buttonStyle="solid"
-                  //       options={[
-                  //         { label: "Full payment", value: "full" },
-                  //         { label: "EMI", value: "emi" },
-                  //       ]}
-                  //       onChange={(e) => {
-                  //         if (e.target.value === "full") {
-                  //           form.setFieldValue("installments", undefined);
-                  //         }
-                  //       }}
-                  //     />
-                  //   </Form.Item>
-                  // </Col>
-                  <Form.Item
-                    label="Enable EMI"
-                    name="enableEmi"
-                    valuePropName="checked"
-                    initialValue={false}
-                  >
-                    <Switch />
-                  </Form.Item>
-                )}
-              </Row>
-
-              {showPaidFields && (
-                <Row gutter={16}>
-                  <Col xs={24} md={8}>
-                    <Form.Item
-                      label="Price"
-                      name="price"
-                      rules={[
-                        { required: true, message: "Please enter price." },
-                      ]}
-                    >
-                      <InputNumber
-                        size="large"
-                        min={0}
-                        prefix="₹."
-                        style={{ width: "100%" }}
-                        placeholder="499"
-                      />
-                    </Form.Item>
-                  </Col>
-
-                  <Col xs={24} md={8}>
-                    <Form.Item label="Strike out price" name="strikePrice">
-                      <InputNumber
-                        size="large"
-                        min={0}
-                        prefix="₹."
-                        style={{ width: "100%" }}
-                        placeholder="999"
-                      />
-                    </Form.Item>
-                  </Col>
-
-                  <Col xs={24} md={8}>
-                    <Form.Item
-                      label="Validity after payment"
-                      name="validityMonths"
-                      rules={[
-                        { required: true, message: "Please choose validity." },
-                      ]}
-                    >
-                      <Select
-                        size="large"
-                        placeholder="Choose validity"
-                        options={validityOptions}
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              )}
-
-              {enableEmi && (
-                <Form.Item
-                  label="Installments"
-                  name="installments"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please enter installment count.",
-                    },
-                  ]}
-                >
-                  <InputNumber
-                    size="large"
-                    min={1}
-                    max={12}
-                    style={{ width: 220 }}
-                    addonAfter="video parts"
-                  />
-                </Form.Item>
-              )}
-              {enableEmi && (
-                <Table
-                  pagination={false}
-                  columns={[
-                    {
-                      title: "Month",
-                      render: (_, __, index) => `Installment ${index + 1}`,
-                    },
-                    {
-                      title: "Amount",
-                      dataIndex: "amount",
-                      render: (v) => `₹${v}`,
-                    },
-                  ]}
-                  dataSource={installmentData.map((amount, index) => ({
-                    key: index,
-                    amount,
-                  }))}
-                />
-              )}
-              <Space wrap>
-                <Button
-                  type="primary"
-                  size="large"
-                  htmlType="submit"
-                  icon={<PlusOutlined />}
-                // disabled={!canSaveClass}
-                >
-                  Add Course
-                </Button>
-                <Button
-                  size="large"
-                  onClick={() => {
-                    setIsFormVisible(false);
-                    form.resetFields();
-                  }}
-                >
-                  Cancel
-                </Button>
-              </Space>
-            </Form>
-          </Card>
-        </>
-      ) : (
-        <Card style={{ borderRadius: 8 }}>
-          <Space
-            align="center"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: 16,
-            }}
-            wrap
-          >
-            <Title level={4} style={{ marginTop: 0 }}>
+            <Title level={4} style={{ margin: 0 }}>
               Courses List
             </Title>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              // disabled={classes.length === 0}
-              onClick={() => openVideoForm()}
-            >
-              Add Course
-            </Button>
-          </Space>
-          {classes.length > 0 ? (
-            <Table
-              columns={columns}
-              dataSource={classes}
-              pagination={false}
-              scroll={{ x: 840 }}
+            <Text type="secondary">
+              Search, paginate, create, and edit courses.
+            </Text>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              form.setFieldsValue({
+                // accessType: "free",
+                // paymentType: "full",
+                subjects: [],
+              });
+              setOpen(true);
+            }}
+          >
+            Add Course
+          </Button>
+        </Space>
+
+        <Input
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="Search course by name or subject"
+          value={searchText}
+          onChange={(event) => {
+            setPage(1);
+            setSearchText(event.target.value);
+          }}
+        />
+
+        <Table
+          rowKey={(record) => record.id}
+          columns={columns}
+          dataSource={courses}
+          loading={isFetching}
+          pagination={{
+            current: page,
+            pageSize: limit,
+            total,
+            showSizeChanger: true,
+            onChange: (nextPage, nextPageSize) => {
+              setPage(nextPage);
+              setLimit(nextPageSize);
+            },
+          }}
+          scroll={{ x: 900 }}
+        />
+      </div>
+
+      <Modal
+        title={editingId ? "Edit Course" : "Add Course"}
+        open={open}
+        onCancel={resetModal}
+        onOk={() => form.submit()}
+        confirmLoading={isCreating || isUpdating || isLoadingCourseDetail}
+        destroyOnHidden
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+        //   initialValues={{
+        //     accessType: "paid",
+        //   }}
+          onFinish={onSubmit}
+        >
+          <Form.Item
+            name="courseName"
+            label="Course Name"
+            rules={[{ required: true, message: "Course name is required." }]}
+          >
+            <Input placeholder="Example: Class 10" />
+          </Form.Item>
+
+          <Form.Item
+            name="subjects"
+            label="Subjects"
+            rules={[
+              { required: true, message: "At least one subject is required." },
+            ]}
+          >
+            <Select
+              mode="tags"
+              placeholder="Type subject and press Enter (Example: Tamil, English, Maths)"
+              tokenSeparators={[","]}
             />
-          ) : (
-            <Empty description="No Courses added yet" />
-          )}
-        </Card>
-      )}
-    </Space>
+          </Form.Item>
+
+          {/* <Form.Item
+            name="accessType"
+            label="Access"
+            rules={[{ required: true, message: "Select access type." }]}
+          >
+            <Radio.Group
+              defaultValue={"paid"}
+              optionType="button"
+              buttonStyle="solid"
+              options={[
+                { label: "Free", value: "free", disabled: true },
+                { label: "Paid", value: "paid" },
+              ]}
+            />
+          </Form.Item> */}
+
+          {/* {accessType === "paid" ? (
+            <>
+              <Form.Item
+                name="paymentType"
+                label="Payment Type"
+                rules={[{ required: true, message: "Payment type is required." }]}
+              >
+                <Radio.Group
+                  optionType="button"
+                  buttonStyle="solid"
+                  options={[
+                    { label: "Full", value: "full" },
+                    { label: "EMI", value: "emi" },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item name="price" label="Price" rules={[{ required: true, message: "Price is required." }]}>
+                <InputNumber min={0} style={{ width: "100%" }} />
+              </Form.Item>
+
+              <Form.Item name="strikePrice" label="Strike Price">
+                <InputNumber min={0} style={{ width: "100%" }} />
+              </Form.Item>
+
+              <Form.Item
+                name="validityMonths"
+                label="Validity (months)"
+                rules={[{ required: true, message: "Validity is required." }]}
+              >
+                <InputNumber min={0} style={{ width: "100%" }} />
+              </Form.Item>
+
+              {paymentType === "emi" ? (
+                <Form.Item
+                  name="installments"
+                  label="Installments"
+                  rules={[{ required: true, message: "Installment count is required." }]}
+                >
+                  <InputNumber min={1} max={24} style={{ width: "100%" }} />
+                </Form.Item>
+              ) : null}
+            </>
+          ) : null} */}
+        </Form>
+      </Modal>
+    </Card>
   );
 }

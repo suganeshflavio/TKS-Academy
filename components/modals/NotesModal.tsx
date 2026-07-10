@@ -3,10 +3,19 @@
 import { Modal, Form, Upload, Button } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 
+type NoteFile = {
+  uid: string;
+  name: string;
+};
+
+type NotesFormValues = {
+  notes: NoteFile[];
+};
+
 interface Props {
-  open: boolean;
-  onCancel: () => void;
-  onSave: (file: any) => void;
+  readonly open: boolean;
+  readonly onCancel: () => void;
+  readonly onSave: (file: NoteFile[]) => void;
 }
 
 export default function NotesModal({
@@ -14,7 +23,7 @@ export default function NotesModal({
   onCancel,
   onSave,
 }: Props) {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<NotesFormValues>();
 
   return (
     <Modal

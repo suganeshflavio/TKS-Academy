@@ -8,10 +8,20 @@ import {
   Space,
 } from "antd";
 
+type McqAnswer = {
+  answer?: string;
+  isCorrect?: boolean;
+};
+
+type McqFormValues = {
+  question: string;
+  answers: McqAnswer[];
+};
+
 interface Props {
-  open: boolean;
-  onCancel: () => void;
-  onSave: (values: any) => void;
+  readonly open: boolean;
+  readonly onCancel: () => void;
+  readonly onSave: (values: McqFormValues) => void;
 }
 
 export default function McqModal({
@@ -19,7 +29,7 @@ export default function McqModal({
   onCancel,
   onSave,
 }: Props) {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<McqFormValues>();
 
   const answers = Form.useWatch("answers", form);
 
@@ -81,7 +91,7 @@ export default function McqModal({
                   if (checked) {
                     const updated =
                       answers?.map(
-                        (item: any, idx: number) => ({
+                        (item: McqAnswer, idx: number) => ({
                           ...item,
                           isCorrect: idx === index,
                         })
