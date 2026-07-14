@@ -37,6 +37,6 @@ const baseQueryWithAuthHandling: BaseQueryFn<string | FetchArgs, unknown, FetchB
 export const appApi = createApi({
   reducerPath: "appApi",
   baseQuery: baseQueryWithAuthHandling,
-  tagTypes: ["Course", "Video", "User", "Auth"],
+  tagTypes: ["Course", "Video", "User", "UserAccess", "Auth"],
   endpoints: () => ({}),
 });

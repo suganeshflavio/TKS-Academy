@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
+  Popconfirm,
   Form,
   Input,
   Modal,
@@ -15,7 +16,7 @@ import {
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { type CourseItem, useGetCoursesQuery } from "@/store/features/coursesApi";
 import {
@@ -142,6 +143,7 @@ export default function Videos() {
   const [limit, setLimit] = useState(10);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const selectedCourseId = Form.useWatch("courseId", form);
 
   const { data, isFetching, refetch } = useGetVideosQuery({
@@ -151,8 +153,19 @@ export default function Videos() {
   });
 
   const { data: coursesPayload } = useGetCoursesQuery({ page: 1, limit: 100 });
-  const videos = useMemo(() => pickVideoList(data), [data]);
-  const courses = useMemo(() => pickCourses(coursesPayload), [coursesPayload]);
+  const videos = useMemo(() => {
+    return pickVideoList(data).filter((video) => {
+      const isActive = video.isActive ?? video.IsActive;
+      return isActive !== false;
+    });
+  }, [data]);
+  // const courses = useMemo(() => pickCourses(coursesPayload), [coursesPayload]);
+    const courses = useMemo(() => {
+      return pickCourses(coursesPayload).filter((course) => {
+        const isActive = course.isActive ?? course.IsActive;
+        return isActive !== false;
+      });
+    }, [coursesPayload]);
   const selectedCourse = useMemo(
     () => courses.find((course) => course.id === selectedCourseId),
     [courses, selectedCourseId],
@@ -212,8 +225,32 @@ export default function Videos() {
 
       resetModal();
       refetch();
-    } catch {
-      message.error("Unable to save video.");
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to save video.");
+    }
+  };
+
+  const onDeleteVideo = async (record: VideoItem) => {
+    const id = record.id;
+
+    try {
+      setDeletingId(id);
+      await updateVideo({
+        id,
+        body: {
+          courseId: record.courseId ?? record.classKey,
+          videoName: record.videoName ?? record.title,
+          youtubeUrl: record.youtubeUrl ?? record.videoUrl,
+          description: record.description,
+          isActive: false,
+        },
+      }).unwrap();
+      message.success("Video deleted successfully.");
+      refetch();
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to delete video.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -264,16 +301,30 @@ export default function Videos() {
       key: "action",
       align: "right",
       render: (_, record) => (
-        <Button
-          icon={<EditOutlined />}
-          disabled
-          onClick={() => {
-            setEditingId(record.id);
-            setOpen(true);
-          }}
-        >
-          Edit
-        </Button>
+        <Space>
+          <Button
+            icon={<EditOutlined />}
+            color="primary"
+             variant="text"
+            onClick={() => {
+              setEditingId(record.id);
+              setOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Popconfirm
+            title="Delete this video?"
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true, loading: deletingId === record.id }}
+            onConfirm={() => onDeleteVideo(record)}
+          >
+            <Button danger icon={<DeleteOutlined />} loading={deletingId === record.id}>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];

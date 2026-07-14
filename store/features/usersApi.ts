@@ -7,7 +7,10 @@ export type UserItem = {
   email?: string;
   mobile?: string;
   role?: string;
+  Role?: string;
   isActive?: boolean;
+  IsActive?: boolean;
+  isAccess?: boolean;
   password?: string;
 };
 
@@ -15,6 +18,18 @@ type UserQueryParams = {
   page?: number;
   limit?: number;
   search?: string;
+};
+
+const unwrapUser = (response: unknown): UserItem => {
+  if (response && typeof response === "object" && !Array.isArray(response)) {
+    const data = (response as Record<string, unknown>).data;
+
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      return data as UserItem;
+    }
+  }
+
+  return response as UserItem;
 };
 
 export const usersApi = appApi.injectEndpoints({
@@ -38,7 +53,7 @@ export const usersApi = appApi.injectEndpoints({
         }
 
         const fallback = await fetchWithBQ({
-          url: "/user",
+          url: "/users",
           method: "GET",
           params,
         });
@@ -61,14 +76,15 @@ export const usersApi = appApi.injectEndpoints({
     }),
     getUserById: builder.query<UserItem, string>({
       query: (id) => ({
-        url: `/user/${id}`,
+        url: `/users/${id}`,
         method: "GET",
       }),
+      transformResponse: unwrapUser,
       providesTags: ["User"],
     }),
     updateUser: builder.mutation<UserItem, { id: string; body: Partial<UserItem> }>({
       query: ({ id, body }) => ({
-        url: `/user/${id}`,
+        url: `/users/${id}`,
         method: "PUT",
         body,
       }),

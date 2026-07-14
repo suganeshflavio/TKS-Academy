@@ -7,15 +7,20 @@ import {
   Form,
   Input,
   Modal,
-  Select,
+  Popconfirm,
+  Tree,
   Space,
   Table,
   Tag,
-  Typography,
   message,
+  Typography,
 } from "antd";
+import type { DataNode } from "antd/es/tree";
+import type { TreeProps } from "antd";
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { type CourseItem, useGetCoursesQuery } from "@/store/features/coursesApi";
+import { type VideoItem, useGetVideosQuery } from "@/store/features/videosApi";
 import { skipToken } from "@reduxjs/toolkit/query";
 import {
   type UserItem,
@@ -24,7 +29,13 @@ import {
   useGetUsersQuery,
   useUpdateUserMutation,
 } from "@/store/features/usersApi";
-
+import {
+  type SaveUserAccessCourse,
+  type SaveUserAccessRequest,
+  useGetUserAccessQuery,
+  useSaveUserAccessMutation,
+  useUpdateUserAccessMutation,
+} from "@/store/features/userAccessApi";
 const { Title, Text } = Typography;
 
 type UserFormValues = {
@@ -35,6 +46,12 @@ type UserFormValues = {
   isActive?: boolean;
   password?: string;
   confirmPassword?: string;
+};
+
+type UserAccessModalState = {
+  open: boolean;
+  userId: string | null;
+  userName: string;
 };
 
 const pickUsers = (payload: unknown): UserItem[] => {
@@ -69,38 +86,111 @@ const pickUsers = (payload: unknown): UserItem[] => {
   return [];
 };
 
-const pickTotal = (payload: unknown, fallbackLength: number) => {
+const pickCourses = (payload: unknown): CourseItem[] => {
   if (Array.isArray(payload)) {
-    return payload.length;
+    return payload as CourseItem[];
   }
 
   if (!payload || typeof payload !== "object") {
-    return fallbackLength;
+    return [];
   }
 
   const data = payload as Record<string, unknown>;
+  const candidates = [data.data, data.items, data.results, data.rows, data.courses];
 
-  if (typeof data.total === "number") {
-    return data.total;
-  }
-
-  if (typeof data.count === "number") {
-    return data.count;
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as CourseItem[];
+    }
   }
 
   if (data.data && typeof data.data === "object") {
     const nested = data.data as Record<string, unknown>;
+    const nestedCandidates = [nested.data, nested.items, nested.results, nested.rows, nested.courses];
 
-    if (typeof nested.total === "number") {
-      return nested.total;
-    }
-
-    if (typeof nested.count === "number") {
-      return nested.count;
+    for (const candidate of nestedCandidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as CourseItem[];
+      }
     }
   }
 
-  return fallbackLength;
+  return [];
+};
+
+const pickVideos = (payload: unknown): VideoItem[] => {
+  if (Array.isArray(payload)) {
+    return payload as VideoItem[];
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const data = payload as Record<string, unknown>;
+  const candidates = [data.data, data.items, data.results, data.rows, data.videos];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as VideoItem[];
+    }
+  }
+
+  if (data.data && typeof data.data === "object") {
+    const nested = data.data as Record<string, unknown>;
+    const nestedCandidates = [nested.data, nested.items, nested.results, nested.rows, nested.videos];
+
+    for (const candidate of nestedCandidates) {
+      if (Array.isArray(candidate)) {
+        return candidate as VideoItem[];
+      }
+    }
+  }
+
+  return [];
+};
+
+const getCourseName = (course: CourseItem) => course.courseName ?? course.name ?? course.title ?? course.id;
+
+const getSubjectName = (subject: string) => subject;
+
+const getChapterName = (video: VideoItem) => video.chapter ?? video.topicName ?? video.title ?? video.videoName ?? "";
+
+const makeAccessKey = (courseId: string, subject: string, chapter: string) => [courseId, subject, chapter].join("::");
+
+const splitAccessKey = (key: string) => {
+  const [courseId = "", subject = "", chapter = ""] = key.split("::");
+  return { courseId, subject, chapter };
+};
+
+const isSubjectKey = (key: string) => key.includes("::subject::");
+
+const isChapterKey = (key: string) => key.split("::").length === 3 && !isSubjectKey(key);
+
+const filterTreeData = (nodes: DataNode[], term: string): DataNode[] => {
+  const normalized = term.trim().toLowerCase();
+
+  if (!normalized) {
+    return nodes;
+  }
+
+  const visit = (node: DataNode): DataNode | null => {
+    const titleText = String((node as { searchValue?: string }).searchValue ?? node.title ?? "").toLowerCase();
+    const children = (node.children ?? [])
+      .map((child) => visit(child as DataNode))
+      .filter(Boolean) as DataNode[];
+
+    if (titleText.includes(normalized) || children.length > 0) {
+      return {
+        ...node,
+        children,
+      };
+    }
+
+    return null;
+  };
+
+  return nodes.map((node) => visit(node)).filter(Boolean) as DataNode[];
 };
 
 export default function Userlist() {
@@ -110,6 +200,15 @@ export default function Userlist() {
   const [limit, setLimit] = useState(10);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [accessModal, setAccessModal] = useState<UserAccessModalState>({
+    open: false,
+    userId: null,
+    userName: "",
+  });
+  const [accessSearchText, setAccessSearchText] = useState("");
+  const [checkedAccessKeys, setCheckedAccessKeys] = useState<string[]>([]);
+  const [isAccessDirty, setIsAccessDirty] = useState(false);
 
   const { data, isFetching, refetch } = useGetUsersQuery({
     page,
@@ -120,27 +219,155 @@ export default function Userlist() {
   const userDetailArgs = editingId ?? skipToken;
   const { data: userDetail, isFetching: isLoadingUserDetail } = useGetUserByIdQuery(userDetailArgs);
 
+  const accessUserId = accessModal.open ? accessModal.userId ?? skipToken : skipToken;
+  const { data: accessDetail, isFetching: isLoadingAccessDetail } = useGetUserAccessQuery(accessUserId);
+
+  const { data: coursesPayload } = useGetCoursesQuery({ page: 1, limit: 1000 });
+  const { data: videosPayload } = useGetVideosQuery({ page: 1, limit: 1000 });
+
   const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+  const [saveUserAccess, { isLoading: isSavingAccess }] = useSaveUserAccessMutation();
+  const [updateUserAccess, { isLoading: isUpdatingAccess }] = useUpdateUserAccessMutation();
 
-  const users = useMemo(() => pickUsers(data), [data]);
-  const total = useMemo(() => pickTotal(data, users.length), [data, users.length]);
+  const users = useMemo(() => {
+    return pickUsers(data).filter((user) => {
+      const isActive = user.isActive ?? user.IsActive;
+      const role = (user.role ?? user.Role ?? "").toLowerCase();
+      return isActive !== false && role === "student";
+    });
+  }, [data]);
+  const total = useMemo(() => users.length, [users.length]);
+
+  const courses = useMemo(() => {
+    return pickCourses(coursesPayload).filter((course) => {
+      const isActive = course.isActive ?? course.IsActive;
+      return isActive !== false;
+    });
+  }, [coursesPayload]);
+
+  const videos = useMemo(() => {
+    return pickVideos(videosPayload).filter((video) => {
+      const isActive = video.isActive ?? video.IsActive;
+      return isActive !== false;
+    });
+  }, [videosPayload]);
+
+  const accessTreeData = useMemo(() => {
+    const tree: DataNode[] = [];
+
+    for (const course of courses) {
+      const courseName = getCourseName(course);
+      const subjects = new Set<string>();
+
+      for (const subject of course.subjects ?? []) {
+        if (subject?.trim()) {
+          subjects.add(subject.trim());
+        }
+      }
+
+      for (const video of videos) {
+        const videoCourseId = video.courseId ?? video.classKey;
+        if (videoCourseId !== course.id) {
+          continue;
+        }
+
+        const subjectName = (video.subject ?? "").trim();
+        if (subjectName) {
+          subjects.add(subjectName);
+        }
+      }
+
+      const subjectNodes: DataNode[] = [];
+
+      for (const subject of Array.from(subjects).sort()) {
+        const chapterMap = new Map<string, string>();
+
+        for (const video of videos) {
+          const videoCourseId = video.courseId ?? video.classKey;
+          const videoSubject = (video.subject ?? "").trim();
+          const chapterName = getChapterName(video).trim();
+
+          if (videoCourseId !== course.id || videoSubject !== subject || !chapterName) {
+            continue;
+          }
+
+          chapterMap.set(chapterName, makeAccessKey(course.id, subject, chapterName));
+        }
+
+        const chapterNodes = Array.from(chapterMap.entries()).map(([chapterName, key]) => ({
+          title: <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{chapterName}</span>,
+          searchValue: chapterName,
+          key,
+        }));
+
+        subjectNodes.push({
+          title: <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{getSubjectName(subject)}</span>,
+          searchValue: getSubjectName(subject),
+          key: `${course.id}::subject::${subject}`,
+          children: chapterNodes,
+        });
+      }
+
+      tree.push({
+        title: <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{courseName}</span>,
+        searchValue: courseName,
+        key: course.id,
+        children: subjectNodes,
+      });
+    }
+
+    return filterTreeData(tree, accessSearchText);
+  }, [accessSearchText, courses, videos]);
 
   useEffect(() => {
     if (!userDetail || !editingId) {
       return;
     }
 
+    const userRole = (userDetail.role ?? userDetail.Role ?? "").toLowerCase();
+    const isActive = userDetail.isActive ?? userDetail.IsActive;
+
     form.setFieldsValue({
       name: userDetail.name ?? "",
       email: userDetail.email ?? "",
       mobile: userDetail.mobile,
-      role: userDetail.role,
-      isActive: userDetail.isActive,
+      role: userRole,
+      isActive,
       password: undefined,
       confirmPassword: undefined,
     });
   }, [editingId, form, userDetail]);
+
+  const initialAccessKeys = useMemo(() => {
+    const keys: string[] = [];
+
+    for (const course of accessDetail?.courses ?? []) {
+      if (!course.courseId) {
+        continue;
+      }
+
+      for (const subject of course.subjects ?? []) {
+        if (!subject.subject) {
+          continue;
+        }
+
+        for (const chapter of subject.chapters ?? []) {
+          if (!chapter) {
+            continue;
+          }
+
+          keys.push(makeAccessKey(course.courseId, subject.subject, chapter));
+        }
+      }
+    }
+
+    return keys;
+  }, [accessDetail]);
+
+  const hasExistingAccess = initialAccessKeys.length > 0;
+
+  const effectiveCheckedAccessKeys = isAccessDirty ? checkedAccessKeys : initialAccessKeys;
 
   const resetModal = () => {
     setOpen(false);
@@ -149,14 +376,10 @@ export default function Userlist() {
   };
 
   const onSubmit = async (values: UserFormValues) => {
-      console.log("values",values);
     const payload: Partial<UserItem> = {
-
       name: values.name.trim(),
       email: values.email.trim(),
       mobile: values.mobile?.trim(),
-    //   role: values.role,
-    //   isActive: values?.isActive,
     };
 
     if (values.password) {
@@ -174,9 +397,146 @@ export default function Userlist() {
 
       resetModal();
       refetch();
-    } catch {
-      message.error("Unable to save user.");
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to save user.");
     }
+  };
+
+  const onDeleteUser = async (id: string) => {
+    try {
+      setDeletingId(id);
+      await updateUser({ id, body: { isActive: false } }).unwrap();
+      message.success("User deleted successfully.");
+      refetch();
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to delete user.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const openAccessModal = (user: UserItem) => {
+    setAccessModal({
+      open: true,
+      userId: user.id,
+      userName: user.name ?? user.email ?? user.id,
+    });
+    setAccessSearchText("");
+    setCheckedAccessKeys([]);
+    setIsAccessDirty(false);
+  };
+
+  const resetAccessModal = () => {
+    setAccessModal({ open: false, userId: null, userName: "" });
+    setAccessSearchText("");
+    setCheckedAccessKeys([]);
+    setIsAccessDirty(false);
+  };
+
+  const onSaveAccess = async () => {
+    if (!accessModal.userId) {
+      return;
+    }
+
+    const selectedKeys = new Set(effectiveCheckedAccessKeys);
+    const allChapterKeys = new Set<string>();
+
+    for (const video of videos) {
+      const courseId = video.courseId ?? video.classKey;
+      const subject = (video.subject ?? "").trim();
+      const chapter = getChapterName(video).trim();
+
+      if (!courseId || !subject || !chapter) {
+        continue;
+      }
+
+      allChapterKeys.add(makeAccessKey(courseId, subject, chapter));
+    }
+
+    const expandedChapterKeys = new Set<string>();
+
+    for (const key of selectedKeys) {
+      if (isChapterKey(key)) {
+        expandedChapterKeys.add(key);
+        continue;
+      }
+
+      if (isSubjectKey(key)) {
+        const [courseId, , subject] = key.split("::");
+        const subjectPrefix = `${courseId}::${subject}::`;
+
+        for (const chapterKey of allChapterKeys) {
+          if (chapterKey.startsWith(subjectPrefix)) {
+            expandedChapterKeys.add(chapterKey);
+          }
+        }
+        continue;
+      }
+
+      const coursePrefix = `${key}::`;
+      for (const chapterKey of allChapterKeys) {
+        if (chapterKey.startsWith(coursePrefix)) {
+          expandedChapterKeys.add(chapterKey);
+        }
+      }
+    }
+
+    const flatAccesses = Array.from(expandedChapterKeys)
+      .map((key) => splitAccessKey(key))
+      .filter((item): item is { courseId: string; subject: string; chapter: string } =>
+        Boolean(item.courseId && item.subject && item.chapter),
+      );
+
+    const courseMap = new Map<string, Map<string, Set<string>>>();
+
+    for (const { courseId, subject, chapter } of flatAccesses) {
+      const subjectMap = courseMap.get(courseId) ?? new Map<string, Set<string>>();
+      courseMap.set(courseId, subjectMap);
+
+      const chapters = subjectMap.get(subject) ?? new Set<string>();
+      subjectMap.set(subject, chapters);
+
+      chapters.add(chapter);
+    }
+
+    const courses: SaveUserAccessCourse[] = Array.from(courseMap.entries()).map(
+      ([courseId, subjectMap]) => ({
+        courseId,
+        subjects: Array.from(subjectMap.entries()).map(([subject, chapters]) => ({
+          subject,
+          chapters: Array.from(chapters),
+        })),
+      }),
+    );
+
+    const body: SaveUserAccessRequest = {
+      userId: accessModal.userId,
+      courses,
+    };
+
+    try {
+      if (hasExistingAccess) {
+        await updateUserAccess(body).unwrap();
+      } else {
+        await saveUserAccess(body).unwrap();
+      }
+
+      message.success("User access updated successfully.");
+      resetAccessModal();
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to save user access.");
+    }
+  };
+
+  const onTreeCheck: TreeProps["onCheck"] = (keys) => {
+    if (Array.isArray(keys)) {
+      setIsAccessDirty(true);
+      setCheckedAccessKeys(keys as string[]);
+      return;
+    }
+
+    setIsAccessDirty(true);
+    setCheckedAccessKeys(keys.checked as string[]);
   };
 
   const columns: ColumnsType<UserItem> = [
@@ -199,12 +559,15 @@ export default function Userlist() {
     {
       title: "Role",
       key: "role",
-      render: (_, record) => <Tag>{record.role ?? "student"}</Tag>,
+      render: (_, record) => <Tag>{record.role ?? record.Role ?? "student"}</Tag>,
     },
     {
       title: "Status",
       key: "status",
-      render: (_, record) => <Tag color={record.isActive ? "green" : "default"}>{record.isActive ? "Active" : "Inactive"}</Tag>,
+      render: (_, record) => {
+        const isActive = record.isActive ?? record.IsActive;
+        return <Tag color={isActive !== false ? "green" : "default"}>{isActive !== false ? "Active" : "Inactive"}</Tag>;
+      },
     },
     {
       title: "Action",
@@ -212,10 +575,20 @@ export default function Userlist() {
       align: "right",
       render: (_, record) => (
         <>
-          <Button
-            icon={<EditOutlined />}
+        <Button
+            icon={record.isAccess ? <EyeOutlined /> : <PlusOutlined />}
             variant="outlined"
+            onClick={() => openAccessModal(record)}
+
+          >
+            {record.isAccess ? "View Course" : "Add Course"}
+          </Button>
+          <Button
+          className="ml-2"
+            icon={<EditOutlined />}
             disabled
+            color="primary"
+             variant="text"
             onClick={() => {
               setEditingId(record.id);
               setOpen(true);
@@ -223,19 +596,23 @@ export default function Userlist() {
           >
             Edit
           </Button>
-          <Button
-          className="ml-2"
-          disabled
-            icon={<DeleteOutlined />}
-            variant="filled"
-            color="danger"
-          //   onClick={() => {
-          //     setDeletingId(record.id);
-          //     setDeleteModalOpen(true);
-          //   }}
+          <Popconfirm
+            title="Delete this user?"
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true, loading: deletingId === record.id }}
+            onConfirm={() => onDeleteUser(record.id)}
           >
-            Delete
-          </Button>
+            <Button
+              className="ml-2"
+              icon={<DeleteOutlined />}
+              variant="filled"
+              color="danger"
+              loading={deletingId === record.id}
+            >
+              Delete
+            </Button>
+          </Popconfirm>
         </>
       ),
     },
@@ -368,6 +745,50 @@ export default function Userlist() {
             <Input.Password placeholder="Re-enter password" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`Assign Access - ${accessModal.userName}`}
+        open={accessModal.open}
+        onCancel={resetAccessModal}
+        onOk={onSaveAccess}
+        okText="Assign Access"
+        confirmLoading={isLoadingAccessDetail || isSavingAccess || isUpdatingAccess}
+        width="min(900px, 96vw)"
+        style={{ top: 16 }}
+        destroyOnHidden
+      >
+        <Space direction="vertical" size={16} style={{ width: "100%" }}>
+          <Input.Search
+            allowClear
+            placeholder="Search course, subject, or chapter"
+            value={accessSearchText}
+            onChange={(event) => setAccessSearchText(event.target.value)}
+          />
+
+          <div
+            style={{
+              border: "1px solid #f0f0f0",
+              borderRadius: 8,
+              padding: 12,
+              maxHeight: "60vh",
+              overflow: "auto",
+            }}
+          >
+            <Tree
+              checkable
+              checkedKeys={effectiveCheckedAccessKeys}
+              onCheck={onTreeCheck}
+              treeData={accessTreeData}
+              defaultExpandAll
+              selectable={false}
+              showLine
+            />
+            {!isLoadingAccessDetail && accessTreeData.length === 0 ? (
+              <Text type="secondary">No courses, subjects, or chapters available.</Text>
+            ) : null}
+          </div>
+        </Space>
       </Modal>
     </Card>
   );

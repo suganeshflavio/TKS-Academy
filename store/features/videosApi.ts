@@ -6,6 +6,8 @@ interface Course {
 }
 export type VideoItem = {
   id: string;
+  isActive?: boolean;
+  IsActive?: boolean;
   courseId?: string;
   classKey?: string;
   course?: Course;
@@ -23,6 +25,18 @@ type VideoQueryParams = {
   page?: number;
   limit?: number;
   search?: string;
+};
+
+const unwrapVideo = (response: unknown): VideoItem => {
+  if (response && typeof response === "object" && !Array.isArray(response)) {
+    const data = (response as Record<string, unknown>).data;
+
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      return data as VideoItem;
+    }
+  }
+
+  return response as VideoItem;
 };
 
 export const videosApi = appApi.injectEndpoints({
@@ -52,6 +66,7 @@ export const videosApi = appApi.injectEndpoints({
         url: `/videos/${id}`,
         method: "GET",
       }),
+      transformResponse: unwrapVideo,
       providesTags: ["Video"],
     }),
     updateVideo: builder.mutation<VideoItem, { id: string; body: Partial<VideoItem> }>({

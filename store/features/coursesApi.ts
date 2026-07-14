@@ -6,6 +6,7 @@ export type CourseItem = {
   name?: string;
   courseName?: string;
   isActive?: boolean;
+  IsActive?: boolean;
   subject?: string;
   subjects?: string[];
   accessType?: "free" | "paid";
@@ -31,6 +32,18 @@ type CourseQueryParams = {
   page?: number;
   limit?: number;
   search?: string;
+};
+
+const unwrapCourse = (response: unknown): CourseItem => {
+  if (response && typeof response === "object" && !Array.isArray(response)) {
+    const data = (response as Record<string, unknown>).data;
+
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      return data as CourseItem;
+    }
+  }
+
+  return response as CourseItem;
 };
 
 export const coursesApi = appApi.injectEndpoints({
@@ -80,6 +93,7 @@ export const coursesApi = appApi.injectEndpoints({
         url: `/courses/${id}`,
         method: "GET",
       }),
+      transformResponse: unwrapCourse,
       providesTags: ["Course"],
     }),
     updateCourse: builder.mutation<CourseItem, { courseId: string; body: Partial<CourseItem> }>({

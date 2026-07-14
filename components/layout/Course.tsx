@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
+  Popconfirm,
   Form,
   Input,
   InputNumber,
@@ -17,7 +18,7 @@ import {
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { skipToken } from "@reduxjs/toolkit/query";
 import {
   type CourseItem,
@@ -125,6 +126,7 @@ export default function CoursePage() {
   const [limit, setLimit] = useState(10);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isFetching, refetch } = useGetCoursesQuery({
     page,
@@ -139,7 +141,12 @@ export default function CoursePage() {
   const [createCourse, { isLoading: isCreating }] = useCreateCourseMutation();
   const [updateCourse, { isLoading: isUpdating }] = useUpdateCourseMutation();
 
-  const courses = useMemo(() => pickCourseList(data), [data]);
+  const courses = useMemo(() => {
+    return pickCourseList(data).filter((course) => {
+      const isActive = course.isActive ?? course.IsActive;
+      return isActive !== false;
+    });
+  }, [data]);
   const total = useMemo(
     () => pickTotal(data, courses.length),
     [courses.length, data],
@@ -182,20 +189,6 @@ export default function CoursePage() {
     const payload = {
       courseName: values.courseName.trim(),
       subjects: cleanSubjects,
-    //   accessType: values.accessType,
-    //   paymentType:
-    //     values.accessType === "paid"
-    //       ? (values.paymentType ?? "full")
-    //       : undefined,
-    //   price: values.accessType === "paid" ? values.price : undefined,
-    //   strikePrice:
-    //     values.accessType === "paid" ? values.strikePrice : undefined,
-    //   validityMonths:
-    //     values.accessType === "paid" ? values.validityMonths : undefined,
-    //   installments:
-    //     values.accessType === "paid" && values.paymentType === "emi"
-    //       ? values.installments
-    //       : undefined,
     };
 
     try {
@@ -211,6 +204,28 @@ export default function CoursePage() {
       refetch();
     } catch(error:unknown) {
       message.error((error as Error)?.message || "Unable to save course.");
+    }
+  };
+
+  const onDeleteCourse = async (record: CourseItem) => {
+    const courseId = record.id;
+    const courseName = record.courseName ?? record.name ?? record.title ?? "";
+
+    try {
+      setDeletingId(courseId);
+      await updateCourse({
+        courseId,
+        body: {
+          courseName,
+          isActive: false,
+        },
+      }).unwrap();
+      message.success("Course deleted successfully.");
+      refetch();
+    } catch(error) {
+      message.error((error as Error)?.message || "Unable to delete course.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -251,12 +266,13 @@ export default function CoursePage() {
       title: "Status",
       key: "isActive",
       render: (_, record) => {
+        const isActive = record.isActive ?? record.IsActive;
         // if (record.accessType !== "paid") {
         //   return "-";
         // }
         return (
-          <Tag color={record.isActive ? "green" : "red"}>
-            {record.isActive ? "Active" : "Inactive"}
+          <Tag color={isActive !== false ? "green" : "red"}>
+            {isActive !== false ? "Active" : "Inactive"}
           </Tag>
         );
       },
@@ -266,16 +282,30 @@ export default function CoursePage() {
       key: "action",
       align: "right",
       render: (_, record) => (
-        <Button
-          icon={<EditOutlined />}
-          disabled
-          onClick={() => {
-            setEditingId(record.id);
-            setOpen(true);
-          }}
-        >
-          Edit
-        </Button>
+        <Space>
+          <Button
+            icon={<EditOutlined />}
+            color="primary"
+             variant="text"
+            onClick={() => {
+              setEditingId(record.id);
+              setOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Popconfirm
+            title="Delete this course?"
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true, loading: deletingId === record.id }}
+            onConfirm={() => onDeleteCourse(record)}
+          >
+            <Button danger icon={<DeleteOutlined />} loading={deletingId === record.id}>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
