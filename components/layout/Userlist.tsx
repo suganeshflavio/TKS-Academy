@@ -167,18 +167,20 @@ const isSubjectKey = (key: string) => key.includes("::subject::");
 
 const isChapterKey = (key: string) => key.split("::").length === 3 && !isSubjectKey(key);
 
-const filterTreeData = (nodes: DataNode[], term: string): DataNode[] => {
+type SearchableDataNode = DataNode & { searchValue?: string; children?: SearchableDataNode[] };
+
+const filterTreeData = (nodes: SearchableDataNode[], term: string): SearchableDataNode[] => {
   const normalized = term.trim().toLowerCase();
 
   if (!normalized) {
     return nodes;
   }
 
-  const visit = (node: DataNode): DataNode | null => {
-    const titleText = String((node as { searchValue?: string }).searchValue ?? node.title ?? "").toLowerCase();
+  const visit = (node: SearchableDataNode): SearchableDataNode | null => {
+    const titleText = String(node.searchValue ?? node.title ?? "").toLowerCase();
     const children = (node.children ?? [])
-      .map((child) => visit(child as DataNode))
-      .filter(Boolean) as DataNode[];
+      .map((child) => visit(child))
+      .filter(Boolean) as SearchableDataNode[];
 
     if (titleText.includes(normalized) || children.length > 0) {
       return {
@@ -190,7 +192,7 @@ const filterTreeData = (nodes: DataNode[], term: string): DataNode[] => {
     return null;
   };
 
-  return nodes.map((node) => visit(node)).filter(Boolean) as DataNode[];
+  return nodes.map((node) => visit(node)).filter(Boolean) as SearchableDataNode[];
 };
 
 export default function Userlist() {
@@ -254,7 +256,7 @@ export default function Userlist() {
   }, [videosPayload]);
 
   const accessTreeData = useMemo(() => {
-    const tree: DataNode[] = [];
+    const tree: SearchableDataNode[] = [];
 
     for (const course of courses) {
       const courseName = getCourseName(course);
@@ -278,7 +280,7 @@ export default function Userlist() {
         }
       }
 
-      const subjectNodes: DataNode[] = [];
+      const subjectNodes: SearchableDataNode[] = [];
 
       for (const subject of Array.from(subjects).sort()) {
         const chapterMap = new Map<string, string>();
