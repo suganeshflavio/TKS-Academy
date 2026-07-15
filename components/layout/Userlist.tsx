@@ -525,6 +525,7 @@ export default function Userlist() {
 
       message.success("User access updated successfully.");
       resetAccessModal();
+      refetch();
     } catch(error:unknown) {
       message.error((error as Error)?.message || "Unable to save user access.");
     }

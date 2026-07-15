@@ -19,6 +19,8 @@ export type VideoItem = {
   videoName?: string;
   title?: string;
   description?: string;
+  notesUrl?: string;
+  fileName?: string;
 };
 
 type VideoQueryParams = {
@@ -53,7 +55,7 @@ export const videosApi = appApi.injectEndpoints({
       }),
       providesTags: ["Video"],
     }),
-    createVideo: builder.mutation<VideoItem, Partial<VideoItem>>({
+    createVideo: builder.mutation<VideoItem, FormData>({
       query: (body) => ({
         url: "/videos",
         method: "POST",
@@ -69,7 +71,7 @@ export const videosApi = appApi.injectEndpoints({
       transformResponse: unwrapVideo,
       providesTags: ["Video"],
     }),
-    updateVideo: builder.mutation<VideoItem, { id: string; body: Partial<VideoItem> }>({
+    updateVideo: builder.mutation<VideoItem, { id: string; body: Partial<VideoItem> | FormData }>({
       query: ({ id, body }) => ({
         url: `/videos/${id}`,
         method: "PUT",

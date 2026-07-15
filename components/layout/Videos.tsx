@@ -13,10 +13,19 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import type { UploadFile } from "antd";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  FileTextOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { type CourseItem, useGetCoursesQuery } from "@/store/features/coursesApi";
 import {
@@ -36,6 +45,30 @@ type VideoFormValues = {
   videoName: string;
   youtubeUrl?: string;
   description?: string;
+  file?: UploadFile[];
+};
+
+const ACCEPTED_FILE_EXTENSIONS = [".ppt", ".pptx"];
+const MAX_FILE_SIZE_MB = 10;
+
+const beforeUploadFile = (file: File) => {
+  const isAccepted = ACCEPTED_FILE_EXTENSIONS.some((ext) =>
+    file.name.toLowerCase().endsWith(ext),
+  );
+
+  if (!isAccepted) {
+    message.error("Only .ppt or .pptx files are allowed.");
+    return Upload.LIST_IGNORE;
+  }
+
+  const isWithinSizeLimit = file.size / 1024 / 1024 <= MAX_FILE_SIZE_MB;
+
+  if (!isWithinSizeLimit) {
+    message.error(`File must be smaller than ${MAX_FILE_SIZE_MB} MB.`);
+    return Upload.LIST_IGNORE;
+  }
+
+  return false;
 };
 
 const pickCourses = (payload: unknown): CourseItem[] => {
@@ -144,6 +177,7 @@ export default function Videos() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewFileRecord, setViewFileRecord] = useState<VideoItem | null>(null);
   const selectedCourseId = Form.useWatch("courseId", form);
 
   const { data, isFetching, refetch } = useGetVideosQuery({
@@ -195,6 +229,16 @@ export default function Videos() {
       videoName: videoDetail.videoName ?? videoDetail.title ?? "",
       youtubeUrl: videoDetail.youtubeUrl ?? videoDetail.videoUrl,
       description: videoDetail.description,
+      file: videoDetail.notesUrl
+        ? [
+            {
+              uid: "-1",
+              name: videoDetail.fileName ?? "presentation.pptx",
+              status: "done",
+              url: videoDetail.notesUrl,
+            },
+          ]
+        : [],
     });
   }, [editingId, form, videoDetail]);
 
@@ -205,21 +249,36 @@ export default function Videos() {
   };
 
   const onSubmit = async (values: VideoFormValues) => {
-    const payload = {
-      courseId: values.courseId,
-      subject: values.subject?.trim(),
-      chapter: values.chapter?.trim(),
-      videoName: values.videoName.trim(),
-      youtubeUrl: values.youtubeUrl?.trim(),
-      description: values.description?.trim(),
-    };
+    const formData = new FormData();
+
+    if (values.courseId) {
+      formData.append("courseId", values.courseId);
+    }
+    if (values.subject?.trim()) {
+      formData.append("subject", values.subject.trim());
+    }
+    if (values.chapter?.trim()) {
+      formData.append("chapter", values.chapter.trim());
+    }
+    formData.append("videoName", values.videoName.trim());
+    if (values.youtubeUrl?.trim()) {
+      formData.append("youtubeUrl", values.youtubeUrl.trim());
+    }
+    if (values.description?.trim()) {
+      formData.append("description", values.description.trim());
+    }
+
+    const uploadedFile = values.file?.[0]?.originFileObj;
+    if (uploadedFile) {
+      formData.append("notesUrl", uploadedFile);
+    }
 
     try {
       if (editingId) {
-        await updateVideo({ id: editingId, body: payload }).unwrap();
+        await updateVideo({ id: editingId, body: formData }).unwrap();
         message.success("Video updated successfully.");
       } else {
-        await createVideo(payload).unwrap();
+        await createVideo(formData).unwrap();
         message.success("Video created successfully.");
       }
 
@@ -302,6 +361,13 @@ export default function Videos() {
       align: "right",
       render: (_, record) => (
         <Space>
+          <Button
+            icon={<FileTextOutlined />}
+            disabled={!record.notesUrl}
+            onClick={() => setViewFileRecord(record)}
+          >
+            View File
+          </Button>
           <Button
             icon={<EditOutlined />}
             color="primary"
@@ -438,7 +504,46 @@ export default function Videos() {
           <Form.Item name="description" label="Description" rules={[{ required: true, message: "Description is required." }]}>
             <Input.TextArea rows={4} placeholder="Optional description" />
           </Form.Item>
+
+          <Form.Item
+            name="file"
+            label="Presentation File (PPT/PPTX, max 10 MB)"
+            valuePropName="fileList"
+            getValueFromEvent={(event) => (Array.isArray(event) ? event : event?.fileList)}
+          >
+            <Upload
+              accept=".ppt,.pptx"
+              maxCount={1}
+              beforeUpload={beforeUploadFile}
+            >
+              <Button icon={<UploadOutlined />}>Select File</Button>
+            </Upload>
+          </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="View Presentation File"
+        open={!!viewFileRecord}
+        onCancel={() => setViewFileRecord(null)}
+        footer={<Button onClick={() => setViewFileRecord(null)}>Close</Button>}
+        width={800}
+      >
+        {viewFileRecord?.notesUrl ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Text strong>{viewFileRecord.fileName ?? "Presentation file"}</Text>
+            <iframe
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewFileRecord.notesUrl)}`}
+              style={{ width: "100%", height: 500, border: "none" }}
+              title="Presentation preview"
+            />
+            <a href={viewFileRecord.notesUrl} target="_blank" rel="noopener noreferrer">
+              Open / download file
+            </a>
+          </div>
+        ) : (
+          <Text type="secondary">No file uploaded for this video.</Text>
+        )}
       </Modal>
     </Card>
   );
