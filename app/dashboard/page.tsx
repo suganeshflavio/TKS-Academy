@@ -170,20 +170,20 @@ const App: React.FC = () => {
                     />
         ) : ( */}
 
-          <Image
-                      src="/tks_academy_logo.png"
-                      alt="TKS Academy logo"
-                      width={80}
-                      height={50}
-                      preload
-                      unoptimized
-                      style={{
-                        // height: "auto",
-                        // borderRadius: 50,
-                        // margin: "0 auto 18px",
-                        marginTop: 10,
-                      }}
-                    />
+        <Image
+          src="/tks_academy_logo.png"
+          alt="TKS Academy logo"
+          width={80}
+          height={50}
+          preload
+          unoptimized
+          style={{
+            // height: "auto",
+            // borderRadius: 50,
+            // margin: "0 auto 18px",
+            marginTop: 10,
+          }}
+        />
         {/* )} */}
       </div>
 
