@@ -6,6 +6,7 @@ import { useAdminLoginMutation } from "@/store/features/authApi";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/store/authSlice";
 import { useEffect } from "react";
+import Image from "next/image";
 
 const { Title, Text, Link } = Typography;
 
@@ -69,21 +70,22 @@ export default function LoginPage() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          {/* <Image
-            src="/tks-academy-logo.svg"
+          <Image
+            src="/tks_academy_logo.png"
             alt="TKS Academy logo"
-            width={180}
-            height={72}
+            width={100}
+            height={50}
             preload
             unoptimized
             style={{
               height: "auto",
+              borderRadius: 50,
               margin: "0 auto 18px",
             }}
-          /> */}
-          <Title level={2} style={{ color: '#40a3d8' }}>
+          />
+          {/* <Title level={2} style={{ color: '#40a3d8' }}>
             TKS Academy
-          </Title>
+          </Title> */}
 
           <Title level={4} style={{ marginBottom: 8 }}>
             Sign in with your account to continue

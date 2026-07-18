@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/authSlice";
 import { getToken } from "@/store/authStorage";
+import Image from "next/image";
 
 const { Header, Content, Sider } = Layout;
 
@@ -151,15 +152,39 @@ const App: React.FC = () => {
             transition: "all 0.3s",
           }}
         /> */}
-        {collapsed ? (
-          <Title level={4} style={{ color: "#40a3d8" }}>
-            TKS
-          </Title>
-        ) : (
-          <Title level={3} style={{ color: "#40a3d8" }}>
-            TKS Academy
-          </Title>
-        )}
+        {/* {collapsed ? (
+
+          <Image
+                      src="/tks_academy_logo.png"
+                      alt="TKS Academy logo"
+                      width={80}
+                      height={50}
+                      preload
+                      unoptimized
+                      style={{
+                        // height: "auto",
+                        // borderRadius: 50,
+                        // margin: "0 auto 18px",
+                        marginTop: 10,
+                      }}
+                    />
+        ) : ( */}
+
+          <Image
+                      src="/tks_academy_logo.png"
+                      alt="TKS Academy logo"
+                      width={80}
+                      height={50}
+                      preload
+                      unoptimized
+                      style={{
+                        // height: "auto",
+                        // borderRadius: 50,
+                        // margin: "0 auto 18px",
+                        marginTop: 10,
+                      }}
+                    />
+        {/* )} */}
       </div>
 
       <Menu
