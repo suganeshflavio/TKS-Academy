@@ -87,6 +87,7 @@ const App: React.FC = () => {
       router.replace("/");
     }
   }, [router, token]);
+  const adminName = typeof window !== "undefined" ? sessionStorage.getItem("adminName") : null;
 
   const isMobile = !screens.lg;
   const renderContent = () => {
@@ -263,7 +264,7 @@ const App: React.FC = () => {
             >
               <Avatar icon={<UserOutlined />} />
 
-              {!isMobile && <span>John Doe</span>}
+              {!isMobile && <span>{adminName}</span>}
             </div>
           </Dropdown>
         </Header>

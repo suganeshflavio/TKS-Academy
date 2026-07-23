@@ -28,13 +28,13 @@ export default function LoginPage() {
 
       const token =
         response.token ?? response.accessToken ?? response.data?.token ?? response.data?.accessToken;
-
+      const username = response.data?.user?.name;
       if (!token) {
         message.error("Login failed: token not found in response.");
         return;
       }
 
-      dispatch(setCredentials({ token }));
+      dispatch(setCredentials({ token, name: username }));
       message.success("Login successful.");
       router.push("/dashboard");
     } catch (error: unknown) {

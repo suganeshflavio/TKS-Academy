@@ -7,6 +7,7 @@ export type UserItem = {
   email?: string;
   mobile?: string;
   role?: string;
+  class?: string;
   Role?: string;
   isActive?: boolean;
   IsActive?: boolean;

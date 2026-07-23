@@ -14,6 +14,9 @@ type LoginResponse = {
   data?: {
     token?: string;
     accessToken?: string;
+    user?: {
+      name?: string;
+    };
   };
 };
 

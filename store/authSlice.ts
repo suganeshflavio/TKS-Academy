@@ -17,12 +17,15 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setCredentials: (state, action: PayloadAction<{ token: string }>) => {
-      const { token } = action.payload;
+    setCredentials: (state, action: PayloadAction<{ token: string; name?: string }>) => {
+      const { token, name } = action.payload;
 
       state.token = token;
       state.isAuthenticated = true;
       setToken(token, "session");
+      if (name) {
+        sessionStorage.setItem("adminName", name);
+      }
     },
     logout: (state) => {
       state.token = null;

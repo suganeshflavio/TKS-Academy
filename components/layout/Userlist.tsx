@@ -14,6 +14,7 @@ import {
   Tag,
   message,
   Typography,
+  Select,
 } from "antd";
 import type { DataNode } from "antd/es/tree";
 import type { TreeProps } from "antd";
@@ -41,6 +42,7 @@ const { Title, Text } = Typography;
 type UserFormValues = {
   name: string;
   email: string;
+  class?: string;
   mobile?: string;
   role?: string;
   isActive?: boolean;
@@ -333,6 +335,7 @@ export default function Userlist() {
     form.setFieldsValue({
       name: userDetail.name ?? "",
       email: userDetail.email ?? "",
+      class: userDetail.class ?? "",
       mobile: userDetail.mobile,
       role: userRole,
       isActive,
@@ -381,6 +384,7 @@ export default function Userlist() {
     const payload: Partial<UserItem> = {
       name: values.name.trim(),
       email: values.email.trim(),
+      class: values.class?.trim(),
       mobile: values.mobile?.trim(),
     };
 
@@ -565,13 +569,18 @@ export default function Userlist() {
       render: (_, record) => <Tag>{record.role ?? record.Role ?? "student"}</Tag>,
     },
     {
-      title: "Status",
-      key: "status",
-      render: (_, record) => {
-        const isActive = record.isActive ?? record.IsActive;
-        return <Tag color={isActive !== false ? "green" : "default"}>{isActive !== false ? "Active" : "Inactive"}</Tag>;
-      },
+      title: "Class",
+      key: "class",
+      render: (_, record) => <Tag>{record.class ?? "-"}</Tag>,
     },
+    // {
+    //   title: "Status",
+    //   key: "status",
+    //   render: (_, record) => {
+    //     const isActive = record.isActive ?? record.IsActive;
+    //     return <Tag color={isActive !== false ? "green" : "default"}>{isActive !== false ? "Active" : "Inactive"}</Tag>;
+    //   },
+    // },
     {
       title: "Action",
       key: "action",
@@ -589,7 +598,7 @@ export default function Userlist() {
           <Button
           className="ml-2"
             icon={<EditOutlined />}
-            disabled
+            // disabled
             color="primary"
              variant="text"
             onClick={() => {
@@ -690,7 +699,7 @@ export default function Userlist() {
             <Input placeholder="Enter email" />
           </Form.Item>
 
-          <Form.Item name="mobile" label="Phone" rules={[{ pattern: /^\d{10}$/, message: "Please enter a valid 10-digit phone number." }]}>
+          <Form.Item name="mobile" label="Phone" rules={[{ required: true, message: "Phone is required." }, { pattern: /^\d{10}$/, message: "Please enter a valid 10-digit phone number." }]}>
             <Input placeholder="Optional phone" />
           </Form.Item>
 
@@ -703,17 +712,19 @@ export default function Userlist() {
                 { label: "Mentor", value: "mentor" },
               ]}
             />
-          </Form.Item>
+          </Form.Item> */}
 
-          <Form.Item name="status" label="Status">
+          <Form.Item name="class" label="Class" rules={[{ required: true, message: "Class is required." }]}>
             <Select
               allowClear
               options={[
-                { label: "Active", value: "active" },
-                { label: "Inactive", value: "inactive" },
+                { label: "10th", value: "10th" },
+                { label: "11th", value: "11th" },
+                { label: "12th", value: "12th" },
+                { label: "Neet Student", value: "NEET" },
               ]}
             />
-          </Form.Item> */}
+          </Form.Item>
 
           <Form.Item
             name="password"
