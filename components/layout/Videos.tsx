@@ -11,20 +11,24 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   Typography,
   Upload,
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import type { UploadFile } from "antd";
+import type { UploadFile, UploadProps } from "antd";
 import {
+  CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
   PlusOutlined,
   SearchOutlined,
+  StopOutlined,
   UploadOutlined,
+  VideoCameraOutlined,
 } from "@ant-design/icons";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { type CourseItem, useGetCoursesQuery } from "@/store/features/coursesApi";
@@ -32,7 +36,9 @@ import {
   type VideoItem,
   useCreateVideoMutation,
   useGetVideoByIdQuery,
+  useGetVideoUploadUrlMutation,
   useGetVideosQuery,
+  usePermanentDeleteVideoMutation,
   useUpdateVideoMutation,
 } from "@/store/features/videosApi";
 
@@ -46,10 +52,12 @@ type VideoFormValues = {
   youtubeUrl?: string;
   description?: string;
   file?: UploadFile[];
+  videoFile?: UploadFile[];
 };
 
-const ACCEPTED_FILE_EXTENSIONS = [".ppt", ".pptx"];
+const ACCEPTED_FILE_EXTENSIONS = [".ppt", ".pptx", ".pdf"];
 const MAX_FILE_SIZE_MB = 10;
+const MAX_VIDEO_SIZE_MB = 2048;
 
 const beforeUploadFile = (file: File) => {
   const isAccepted = ACCEPTED_FILE_EXTENSIONS.some((ext) =>
@@ -57,7 +65,7 @@ const beforeUploadFile = (file: File) => {
   );
 
   if (!isAccepted) {
-    message.error("Only .ppt or .pptx files are allowed.");
+    message.error("Only .ppt, .pptx, or .pdf files are allowed.");
     return Upload.LIST_IGNORE;
   }
 
@@ -69,6 +77,24 @@ const beforeUploadFile = (file: File) => {
   }
 
   return false;
+};
+
+const beforeUploadVideoFile = (file: File) => {
+  const isMp4 = file.name.toLowerCase().endsWith(".mp4") || file.type === "video/mp4";
+
+  if (!isMp4) {
+    message.error("Only .mp4 files are allowed.");
+    return Upload.LIST_IGNORE;
+  }
+
+  const isWithinSizeLimit = file.size / 1024 / 1024 <= MAX_VIDEO_SIZE_MB;
+
+  if (!isWithinSizeLimit) {
+    message.error(`Video must be smaller than ${MAX_VIDEO_SIZE_MB} MB.`);
+    return Upload.LIST_IGNORE;
+  }
+
+  return true;
 };
 
 const pickCourses = (payload: unknown): CourseItem[] => {
@@ -177,7 +203,16 @@ export default function Videos() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [statusTab, setStatusTab] = useState<"active" | "blocked">("active");
   const [viewFileRecord, setViewFileRecord] = useState<VideoItem | null>(null);
+  const [viewVideoRecord, setViewVideoRecord] = useState<VideoItem | null>(null);
+  const [videoUploadResult, setVideoUploadResult] = useState<{
+    videoFileId: string;
+    videoFileName: string;
+    videoSize?: number;
+  } | null>(null);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const selectedCourseId = Form.useWatch("courseId", form);
 
   const { data, isFetching, refetch } = useGetVideosQuery({
@@ -189,11 +224,10 @@ export default function Videos() {
   const { data: coursesPayload } = useGetCoursesQuery({ page: 1, limit: 100 });
   const videos = useMemo(() => {
     return pickVideoList(data).filter((video) => {
-      const isActive = video.isActive ?? video.IsActive;
-      return isActive !== false;
+      const isActive = (video.isActive ?? video.IsActive) !== false;
+      return isActive === (statusTab === "active");
     });
-  }, [data]);
-  // const courses = useMemo(() => pickCourses(coursesPayload), [coursesPayload]);
+  }, [data, statusTab]);
     const courses = useMemo(() => {
       return pickCourses(coursesPayload).filter((course) => {
         const isActive = course.isActive ?? course.IsActive;
@@ -214,6 +248,8 @@ export default function Videos() {
 
   const [createVideo, { isLoading: isCreating }] = useCreateVideoMutation();
   const [updateVideo, { isLoading: isUpdating }] = useUpdateVideoMutation();
+  const [permanentDeleteVideo] = usePermanentDeleteVideoMutation();
+  const [getVideoUploadUrl] = useGetVideoUploadUrlMutation();
 
   const total = useMemo(() => pickTotal(data, videos.length), [data, videos.length]);
 
@@ -239,12 +275,39 @@ export default function Videos() {
             },
           ]
         : [],
+      videoFile: videoDetail.videoFileName
+        ? [
+            {
+              uid: "-2",
+              name: videoDetail.videoFileName,
+              status: "done",
+              url: videoDetail.videoUrl,
+            },
+          ]
+        : [],
     });
   }, [editingId, form, videoDetail]);
+
+  const existingVideoUpload = useMemo(() => {
+    if (!editingId || !videoDetail?.videoFileId || !videoDetail?.videoFileName) {
+      return null;
+    }
+
+    return {
+      videoFileId: videoDetail.videoFileId,
+      videoFileName: videoDetail.videoFileName,
+      videoSize: videoDetail.videoSize,
+    };
+  }, [editingId, videoDetail]);
+
+  const [videoFileRemoved, setVideoFileRemoved] = useState(false);
+  const effectiveVideoUpload = videoUploadResult ?? (videoFileRemoved ? null : existingVideoUpload);
 
   const resetModal = () => {
     setOpen(false);
     setEditingId(null);
+    setVideoUploadResult(null);
+    setVideoFileRemoved(false);
     form.resetFields();
   };
 
@@ -273,6 +336,14 @@ export default function Videos() {
       formData.append("notesUrl", uploadedFile);
     }
 
+    if (effectiveVideoUpload) {
+      formData.append("videoFileId", effectiveVideoUpload.videoFileId);
+      formData.append("videoFileName", effectiveVideoUpload.videoFileName);
+      if (effectiveVideoUpload.videoSize !== undefined) {
+        formData.append("videoSize", String(effectiveVideoUpload.videoSize));
+      }
+    }
+
     try {
       if (editingId) {
         await updateVideo({ id: editingId, body: formData }).unwrap();
@@ -289,11 +360,12 @@ export default function Videos() {
     }
   };
 
-  const onDeleteVideo = async (record: VideoItem) => {
+  const onToggleVideoBlocked = async (record: VideoItem) => {
     const id = record.id;
+    const nextActive = !((record.isActive ?? record.IsActive) !== false);
 
     try {
-      setDeletingId(id);
+      setStatusUpdatingId(id);
       await updateVideo({
         id,
         body: {
@@ -301,15 +373,110 @@ export default function Videos() {
           videoName: record.videoName ?? record.title,
           youtubeUrl: record.youtubeUrl ?? record.videoUrl,
           description: record.description,
-          isActive: false,
+          videoFileId: record.videoFileId,
+          videoFileName: record.videoFileName,
+          isActive: nextActive,
         },
       }).unwrap();
+      message.success(`Video ${nextActive ? "unblocked" : "blocked"} successfully.`);
+      refetch();
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to update video status.");
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
+  const onDeleteVideo = async (record: VideoItem) => {
+    const id = record.id;
+
+    try {
+      setDeletingId(id);
+      await permanentDeleteVideo(id).unwrap();
       message.success("Video deleted successfully.");
       refetch();
     } catch(error:unknown) {
       message.error((error as Error)?.message || "Unable to delete video.");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleVideoUploadRequest: NonNullable<UploadProps["customRequest"]> = async ({
+    file,
+    onProgress,
+    onSuccess,
+    onError,
+  }) => {
+    const uploadFile = file as File;
+
+    if (!selectedCourseId) {
+      const missingCourseError = new Error("Select a course before uploading a video.");
+      onError?.(missingCourseError);
+      message.error(missingCourseError.message);
+      return;
+    }
+
+    try {
+      setIsUploadingVideo(true);
+
+      // Step 1: ask the backend for a presigned B2 upload slot.
+      const presigned = await getVideoUploadUrl({
+        fileName: uploadFile.name,
+        courseId: selectedCourseId,
+      }).unwrap();
+
+      if (!presigned?.uploadUrl) {
+        throw new Error(
+          "The server did not return an upload URL. Check the /videos/upload-url response shape.",
+        );
+      }
+
+      // Step 2: upload the raw file straight to B2 using the returned headers.
+      const b2Response = await new Promise<{ fileId: string; contentLength: number }>(
+        (resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", presigned.uploadUrl);
+
+          Object.entries(presigned.headers ?? {}).forEach(([key, value]) => {
+            xhr.setRequestHeader(key, value);
+          });
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              onProgress?.({ percent: (event.loaded / event.total) * 100 });
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                resolve(JSON.parse(xhr.responseText));
+              } catch {
+                reject(new Error("Unexpected response from storage upload."));
+              }
+            } else {
+              reject(new Error("Upload failed."));
+            }
+          };
+          xhr.onerror = () => reject(new Error("Upload failed."));
+          xhr.send(uploadFile);
+        },
+      );
+
+      // Step 3 (deferred to onSubmit): the create/update video call sends these two values.
+      setVideoUploadResult({
+        videoFileId: b2Response.fileId,
+        videoFileName: presigned.fileName,
+        videoSize: b2Response.contentLength,
+      });
+      onSuccess?.(b2Response);
+      message.success("Video uploaded successfully.");
+    } catch (error: unknown) {
+      onError?.(error as Error);
+      message.error((error as Error)?.message || "Unable to upload video.");
+    } finally {
+      setIsUploadingVideo(false);
     }
   };
 
@@ -346,32 +513,47 @@ export default function Videos() {
       ),
     },
     {
-      title: "Video URL",
+      title: "Video",
       key: "video",
       render: (_, record) => (
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          <Text >{record.youtubeUrl ?? record.videoUrl ?? "-"}</Text>
-          {/* <Text type="secondary">ID: {record.id}</Text> */}
-        </div>
+        <Button
+          icon={<VideoCameraOutlined />}
+          disabled={!record.videoUrl && !record.youtubeUrl}
+          onClick={() => setViewVideoRecord(record)}
+        >
+          View Video
+        </Button>
+      ),
+    },
+    {
+      title: "Notes",
+      key: "notesUrl",
+      render: (_, record) => (
+        <Button
+          icon={<FileTextOutlined />}
+          disabled={!record.notesUrl}
+          onClick={() => setViewFileRecord(record)}
+        >
+          View Notes
+        </Button>
       ),
     },
     {
       title: "Action",
       key: "action",
-      align: "right",
       render: (_, record) => (
-        <Space>
-          <Button
+        <Space wrap>
+          {/* <Button
             icon={<FileTextOutlined />}
             disabled={!record.notesUrl}
             onClick={() => setViewFileRecord(record)}
           >
             View File
-          </Button>
+          </Button> */}
           <Button
             icon={<EditOutlined />}
             color="primary"
-             variant="text"
+            variant="text"
             onClick={() => {
               setEditingId(record.id);
               setOpen(true);
@@ -379,14 +561,40 @@ export default function Videos() {
           >
             Edit
           </Button>
+          {statusTab === "active" ? (
+            <Popconfirm
+              title="Block this video?"
+              okText="Block"
+              cancelText="Cancel"
+              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              onConfirm={() => onToggleVideoBlocked(record)}
+            >
+              <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+                Block
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="Unblock this video?"
+              okText="Unblock"
+              cancelText="Cancel"
+              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              onConfirm={() => onToggleVideoBlocked(record)}
+            >
+              <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+                Unblock
+              </Button>
+            </Popconfirm>
+          )}
           <Popconfirm
             title="Delete this video?"
+            description="This action cannot be undone."
             okText="Delete"
             cancelText="Cancel"
             okButtonProps={{ danger: true, loading: deletingId === record.id }}
             onConfirm={() => onDeleteVideo(record)}
           >
-            <Button danger icon={<DeleteOutlined />} loading={deletingId === record.id}>
+            <Button color="danger" variant="outlined" icon={<DeleteOutlined />} loading={deletingId === record.id}>
               Delete
             </Button>
           </Popconfirm>
@@ -421,6 +629,18 @@ export default function Videos() {
           }}
         />
 
+        <Tabs
+          activeKey={statusTab}
+          onChange={(key) => {
+            setStatusTab(key as "active" | "blocked");
+            setPage(1);
+          }}
+          items={[
+            { key: "active", label: "Active" },
+            { key: "blocked", label: "Blocked" },
+          ]}
+        />
+
         <Table
           rowKey={(record) => record.id}
           columns={columns}
@@ -436,7 +656,7 @@ export default function Videos() {
               setLimit(nextPageSize);
             },
           }}
-          scroll={{ x: 960 }}
+          scroll={{ x: 1100 }}
         />
       </div>
 
@@ -497,7 +717,37 @@ export default function Videos() {
             <Input placeholder="Example: Algebra Basics" />
           </Form.Item>
 
-          <Form.Item name="youtubeUrl" label="Video URL" rules={[{ required: true, message: "Video URL is required." }]}>
+          <Form.Item
+            name="videoFile"
+            label="Video Upload (MP4, max 2 GB)"
+            valuePropName="fileList"
+            getValueFromEvent={(event) => (Array.isArray(event) ? event : event?.fileList)}
+            rules={[
+              {
+                validator: (_, value) =>
+                  Array.isArray(value) && value.length > 0
+                    ? Promise.resolve()
+                    : Promise.reject(new Error("Please upload an MP4 video.")),
+              },
+            ]}
+          >
+            <Upload
+              accept=".mp4,video/mp4"
+              maxCount={1}
+              beforeUpload={beforeUploadVideoFile}
+              customRequest={handleVideoUploadRequest}
+              onRemove={() => {
+                setVideoUploadResult(null);
+                setVideoFileRemoved(true);
+              }}
+            >
+              <Button icon={<VideoCameraOutlined />} loading={isUploadingVideo}>
+                {isUploadingVideo ? "Uploading..." : "Select MP4"}
+              </Button>
+            </Upload>
+          </Form.Item>
+
+          <Form.Item name="youtubeUrl" label="Video URL (optional)">
             <Input placeholder="video URL"/>
           </Form.Item>
 
@@ -507,12 +757,12 @@ export default function Videos() {
 
           <Form.Item
             name="file"
-            label="Presentation File (PPT/PPTX, max 10 MB)"
+            label="Upload File (PPT/PPTX/PDF, max 10 MB)"
             valuePropName="fileList"
             getValueFromEvent={(event) => (Array.isArray(event) ? event : event?.fileList)}
           >
             <Upload
-              accept=".ppt,.pptx"
+              accept=".ppt,.pptx,.pdf"
               maxCount={1}
               beforeUpload={beforeUploadFile}
             >
@@ -523,7 +773,7 @@ export default function Videos() {
       </Modal>
 
       <Modal
-        title="View Presentation File"
+        title="View Uploaded File"
         open={!!viewFileRecord}
         onCancel={() => setViewFileRecord(null)}
         footer={<Button onClick={() => setViewFileRecord(null)}>Close</Button>}
@@ -543,6 +793,38 @@ export default function Videos() {
           </div>
         ) : (
           <Text type="secondary">No file uploaded for this video.</Text>
+        )}
+      </Modal>
+
+      <Modal
+        title="View Video"
+        open={!!viewVideoRecord}
+        onCancel={() => setViewVideoRecord(null)}
+        footer={<Button onClick={() => setViewVideoRecord(null)}>Close</Button>}
+        width={800}
+        destroyOnHidden
+      >
+        {viewVideoRecord?.videoUrl ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Text strong>{viewVideoRecord.videoName ?? viewVideoRecord.title ?? "Video"}</Text>
+            <video
+              controls
+              src={viewVideoRecord.videoUrl}
+              style={{ width: "100%", maxHeight: 500 }}
+            />
+            <a href={viewVideoRecord.videoUrl} target="_blank" rel="noopener noreferrer">
+              Open / download video
+            </a>
+          </div>
+        ) : viewVideoRecord?.youtubeUrl ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Text strong>{viewVideoRecord.videoName ?? viewVideoRecord.title ?? "Video"}</Text>
+            <a href={viewVideoRecord.youtubeUrl} target="_blank" rel="noopener noreferrer">
+              Open video link
+            </a>
+          </div>
+        ) : (
+          <Text type="secondary">No video uploaded for this record.</Text>
         )}
       </Modal>
     </Card>

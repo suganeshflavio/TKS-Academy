@@ -11,6 +11,7 @@ import {
   Tree,
   Space,
   Table,
+  Tabs,
   Tag,
   message,
   Typography,
@@ -18,7 +19,15 @@ import {
 } from "antd";
 import type { DataNode } from "antd/es/tree";
 import type { TreeProps } from "antd";
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import {
+  CheckCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  StopOutlined,
+} from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { type CourseItem, useGetCoursesQuery } from "@/store/features/coursesApi";
 import { type VideoItem, useGetVideosQuery } from "@/store/features/videosApi";
@@ -28,6 +37,7 @@ import {
   useCreateUserMutation,
   useGetUserByIdQuery,
   useGetUsersQuery,
+  usePermanentDeleteUserMutation,
   useUpdateUserMutation,
 } from "@/store/features/usersApi";
 import {
@@ -205,6 +215,8 @@ export default function Userlist() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [statusTab, setStatusTab] = useState<"active" | "blocked">("active");
   const [accessModal, setAccessModal] = useState<UserAccessModalState>({
     open: false,
     userId: null,
@@ -231,16 +243,17 @@ export default function Userlist() {
 
   const [createUser, { isLoading: isCreating }] = useCreateUserMutation();
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+  const [permanentDeleteUser] = usePermanentDeleteUserMutation();
   const [saveUserAccess, { isLoading: isSavingAccess }] = useSaveUserAccessMutation();
   const [updateUserAccess, { isLoading: isUpdatingAccess }] = useUpdateUserAccessMutation();
 
   const users = useMemo(() => {
     return pickUsers(data).filter((user) => {
-      const isActive = user.isActive ?? user.IsActive;
       const role = (user.role ?? user.Role ?? "").toLowerCase();
-      return isActive !== false && role === "student";
+      const isActive = (user.isActive ?? user.IsActive) !== false;
+      return role === "student" && isActive === (statusTab === "active");
     });
-  }, [data]);
+  }, [data, statusTab]);
   const total = useMemo(() => users.length, [users.length]);
 
   const courses = useMemo(() => {
@@ -408,10 +421,26 @@ export default function Userlist() {
     }
   };
 
+  const onToggleUserBlocked = async (record: UserItem) => {
+    const id = record.id;
+    const nextActive = !((record.isActive ?? record.IsActive) !== false);
+
+    try {
+      setStatusUpdatingId(id);
+      await updateUser({ id, body: { isActive: nextActive } }).unwrap();
+      message.success(`User ${nextActive ? "unblocked" : "blocked"} successfully.`);
+      refetch();
+    } catch(error:unknown) {
+      message.error((error as Error)?.message || "Unable to update user status.");
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
   const onDeleteUser = async (id: string) => {
     try {
       setDeletingId(id);
-      await updateUser({ id, body: { isActive: false } }).unwrap();
+      await permanentDeleteUser(id).unwrap();
       message.success("User deleted successfully.");
       refetch();
     } catch(error:unknown) {
@@ -573,34 +602,23 @@ export default function Userlist() {
       key: "class",
       render: (_, record) => <Tag>{record.class ?? "-"}</Tag>,
     },
-    // {
-    //   title: "Status",
-    //   key: "status",
-    //   render: (_, record) => {
-    //     const isActive = record.isActive ?? record.IsActive;
-    //     return <Tag color={isActive !== false ? "green" : "default"}>{isActive !== false ? "Active" : "Inactive"}</Tag>;
-    //   },
-    // },
     {
       title: "Action",
       key: "action",
-      align: "right",
+      // align: "right",
       render: (_, record) => (
-        <>
-        <Button
+        <Space wrap>
+          <Button
             icon={record.isAccess ? <EyeOutlined /> : <PlusOutlined />}
             variant="outlined"
             onClick={() => openAccessModal(record)}
-
           >
             {record.isAccess ? "View Course" : "Add Course"}
           </Button>
           <Button
-          className="ml-2"
             icon={<EditOutlined />}
-            // disabled
             color="primary"
-             variant="text"
+            variant="text"
             onClick={() => {
               setEditingId(record.id);
               setOpen(true);
@@ -608,24 +626,48 @@ export default function Userlist() {
           >
             Edit
           </Button>
+          {statusTab === "active" ? (
+            <Popconfirm
+              title="Block this user?"
+              okText="Block"
+              cancelText="Cancel"
+              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              onConfirm={() => onToggleUserBlocked(record)}
+            >
+              <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+                Block
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="Unblock this user?"
+              okText="Unblock"
+              cancelText="Cancel"
+              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              onConfirm={() => onToggleUserBlocked(record)}
+            >
+              <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+                Unblock
+              </Button>
+            </Popconfirm>
+          )}
           <Popconfirm
             title="Delete this user?"
+            description="This action cannot be undone."
             okText="Delete"
             cancelText="Cancel"
             okButtonProps={{ danger: true, loading: deletingId === record.id }}
             onConfirm={() => onDeleteUser(record.id)}
           >
             <Button
-              className="ml-2"
               icon={<DeleteOutlined />}
-              variant="filled"
-              color="danger"
+              color="danger" variant="outlined"
               loading={deletingId === record.id}
             >
               Delete
             </Button>
           </Popconfirm>
-        </>
+        </Space>
       ),
     },
   ];
@@ -656,6 +698,18 @@ export default function Userlist() {
           }}
         />
 
+        <Tabs
+          activeKey={statusTab}
+          onChange={(key) => {
+            setStatusTab(key as "active" | "blocked");
+            setPage(1);
+          }}
+          items={[
+            { key: "active", label: "Active" },
+            { key: "blocked", label: "Blocked" },
+          ]}
+        />
+
         <Table
           rowKey={(record) => record.id}
           columns={columns}
@@ -671,7 +725,7 @@ export default function Userlist() {
               setLimit(nextPageSize);
             },
           }}
-          scroll={{ x: 940 }}
+          scroll={{ x: 1200 }}
         />
       </div>
 

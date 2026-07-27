@@ -104,6 +104,13 @@ export const coursesApi = appApi.injectEndpoints({
       }),
       invalidatesTags: ["Course"],
     }),
+    permanentDeleteCourse: builder.mutation<{ success?: boolean }, string>({
+      query: (courseId) => ({
+        url: `/courses/${courseId}/permanent`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Course"],
+    }),
   }),
 });
 
@@ -112,4 +119,5 @@ export const {
   useCreateCourseMutation,
   useGetCourseByIdQuery,
   useUpdateCourseMutation,
+  usePermanentDeleteCourseMutation,
 } = coursesApi;

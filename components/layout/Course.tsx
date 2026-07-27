@@ -13,18 +13,26 @@ import {
   Select,
   Space,
   Table,
-  Tag,
+  Tabs,
   Typography,
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import {
+  CheckCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  StopOutlined,
+} from "@ant-design/icons";
 import { skipToken } from "@reduxjs/toolkit/query";
 import {
   type CourseItem,
   useCreateCourseMutation,
   useGetCourseByIdQuery,
   useGetCoursesQuery,
+  usePermanentDeleteCourseMutation,
   useUpdateCourseMutation,
 } from "@/store/features/coursesApi";
 
@@ -127,6 +135,8 @@ export default function CoursePage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [statusTab, setStatusTab] = useState<"active" | "blocked">("active");
 
   const { data, isFetching, refetch } = useGetCoursesQuery({
     page,
@@ -140,13 +150,14 @@ export default function CoursePage() {
 
   const [createCourse, { isLoading: isCreating }] = useCreateCourseMutation();
   const [updateCourse, { isLoading: isUpdating }] = useUpdateCourseMutation();
+  const [permanentDeleteCourse] = usePermanentDeleteCourseMutation();
 
   const courses = useMemo(() => {
     return pickCourseList(data).filter((course) => {
-      const isActive = course.isActive ?? course.IsActive;
-      return isActive !== false;
+      const isActive = (course.isActive ?? course.IsActive) !== false;
+      return isActive === (statusTab === "active");
     });
-  }, [data]);
+  }, [data, statusTab]);
   const total = useMemo(
     () => pickTotal(data, courses.length),
     [courses.length, data],
@@ -207,19 +218,35 @@ export default function CoursePage() {
     }
   };
 
-  const onDeleteCourse = async (record: CourseItem) => {
+  const onToggleCourseBlocked = async (record: CourseItem) => {
     const courseId = record.id;
     const courseName = record.courseName ?? record.name ?? record.title ?? "";
+    const nextActive = !((record.isActive ?? record.IsActive) !== false);
 
     try {
-      setDeletingId(courseId);
+      setStatusUpdatingId(courseId);
       await updateCourse({
         courseId,
         body: {
           courseName,
-          isActive: false,
+          isActive: nextActive,
         },
       }).unwrap();
+      message.success(`Course ${nextActive ? "unblocked" : "blocked"} successfully.`);
+      refetch();
+    } catch(error) {
+      message.error((error as Error)?.message || "Unable to update course status.");
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
+  const onDeleteCourse = async (record: CourseItem) => {
+    const courseId = record.id;
+
+    try {
+      setDeletingId(courseId);
+      await permanentDeleteCourse(courseId).unwrap();
       message.success("Course deleted successfully.");
       refetch();
     } catch(error) {
@@ -263,30 +290,15 @@ export default function CoursePage() {
     //   ),
     // },
     {
-      title: "Status",
-      key: "isActive",
-      render: (_, record) => {
-        const isActive = record.isActive ?? record.IsActive;
-        // if (record.accessType !== "paid") {
-        //   return "-";
-        // }
-        return (
-          <Tag color={isActive !== false ? "green" : "red"}>
-            {isActive !== false ? "Active" : "Inactive"}
-          </Tag>
-        );
-      },
-    },
-    {
       title: "Action",
       key: "action",
-      align: "right",
+      // align: "right",
       render: (_, record) => (
-        <Space>
+        <Space wrap>
           <Button
             icon={<EditOutlined />}
             color="primary"
-             variant="text"
+            variant="text"
             onClick={() => {
               setEditingId(record.id);
               setOpen(true);
@@ -294,14 +306,40 @@ export default function CoursePage() {
           >
             Edit
           </Button>
+          {statusTab === "active" ? (
+            <Popconfirm
+              title="Block this course?"
+              okText="Block"
+              cancelText="Cancel"
+              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              onConfirm={() => onToggleCourseBlocked(record)}
+            >
+              <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+                Block
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="Unblock this course?"
+              okText="Unblock"
+              cancelText="Cancel"
+              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              onConfirm={() => onToggleCourseBlocked(record)}
+            >
+              <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+                Unblock
+              </Button>
+            </Popconfirm>
+          )}
           <Popconfirm
             title="Delete this course?"
+            description="This action cannot be undone."
             okText="Delete"
             cancelText="Cancel"
             okButtonProps={{ danger: true, loading: deletingId === record.id }}
             onConfirm={() => onDeleteCourse(record)}
           >
-            <Button danger icon={<DeleteOutlined />} loading={deletingId === record.id}>
+            <Button color="danger" variant="outlined" icon={<DeleteOutlined />} loading={deletingId === record.id}>
               Delete
             </Button>
           </Popconfirm>
@@ -363,6 +401,18 @@ export default function CoursePage() {
           }}
         />
 
+        <Tabs
+          activeKey={statusTab}
+          onChange={(key) => {
+            setStatusTab(key as "active" | "blocked");
+            setPage(1);
+          }}
+          items={[
+            { key: "active", label: "Active" },
+            { key: "blocked", label: "Blocked" },
+          ]}
+        />
+
         <Table
           rowKey={(record) => record.id}
           columns={columns}
@@ -378,7 +428,7 @@ export default function CoursePage() {
               setLimit(nextPageSize);
             },
           }}
-          scroll={{ x: 900 }}
+          scroll={{ x: 1000 }}
         />
       </div>
 

@@ -91,6 +91,13 @@ export const usersApi = appApi.injectEndpoints({
       }),
       invalidatesTags: ["User"],
     }),
+    permanentDeleteUser: builder.mutation<{ success?: boolean }, string>({
+      query: (id) => ({
+        url: `/users/${id}/permanent`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["User"],
+    }),
   }),
 });
 
@@ -99,4 +106,5 @@ export const {
   useCreateUserMutation,
   useGetUserByIdQuery,
   useUpdateUserMutation,
+  usePermanentDeleteUserMutation,
 } = usersApi;
