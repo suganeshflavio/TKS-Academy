@@ -783,10 +783,10 @@ export default function Videos() {
       >
         {viewFileRecord?.notesUrl ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Text strong>{viewFileRecord.fileName ?? "Notes file"}</Text>
+            <Text strong>{viewFileRecord.notesFileName ?? "Notes file"}</Text>
             <iframe
               src={
-                isPdfFile(viewFileRecord.fileName ?? viewFileRecord.notesUrl)
+                isPdfFile(viewFileRecord.notesFileName ?? viewFileRecord.notesUrl)
                   ? viewFileRecord.notesUrl
                   : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewFileRecord.notesUrl)}`
               }

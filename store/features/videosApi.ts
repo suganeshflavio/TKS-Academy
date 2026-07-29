@@ -14,6 +14,7 @@ export type VideoItem = {
   subject?: string;
   chapter?: string;
   youtubeUrl?: string;
+  notesFileName?: string;
   videoUrl?: string;
   topicName?: string;
   videoName?: string;
