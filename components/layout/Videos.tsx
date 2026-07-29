@@ -97,6 +97,8 @@ const beforeUploadVideoFile = (file: File) => {
   return true;
 };
 
+const isPdfFile = (nameOrUrl?: string) => Boolean(nameOrUrl?.toLowerCase().split("?")[0].endsWith(".pdf"));
+
 const pickCourses = (payload: unknown): CourseItem[] => {
   if (Array.isArray(payload)) {
     return payload as CourseItem[];
@@ -781,11 +783,15 @@ export default function Videos() {
       >
         {viewFileRecord?.notesUrl ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Text strong>{viewFileRecord.fileName ?? "Presentation file"}</Text>
+            <Text strong>{viewFileRecord.fileName ?? "Notes file"}</Text>
             <iframe
-              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewFileRecord.notesUrl)}`}
+              src={
+                isPdfFile(viewFileRecord.fileName ?? viewFileRecord.notesUrl)
+                  ? viewFileRecord.notesUrl
+                  : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewFileRecord.notesUrl)}`
+              }
               style={{ width: "100%", height: 500, border: "none" }}
-              title="Presentation preview"
+              title="Notes preview"
             />
             <a href={viewFileRecord.notesUrl} target="_blank" rel="noopener noreferrer">
               Open / download file
