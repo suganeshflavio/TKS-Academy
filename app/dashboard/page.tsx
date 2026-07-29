@@ -3,9 +3,11 @@
 import React, { useEffect, useState } from "react";
 import {
   CheckCircleOutlined,
+  CommentOutlined,
   ReadOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  StarOutlined,
   UserOutlined,
   // CreditCardOutlined,
   VideoCameraAddOutlined,
@@ -14,6 +16,8 @@ import type { MenuProps } from "antd";
 import CoursePage from "@/components/layout/Course";
 import Videos from "@/components/layout/Videos";
 import Userlist from "@/components/layout/Userlist";
+import Comments from "@/components/layout/Comments";
+import Testimonials from "@/components/layout/Testimonials";
 // import PaymentList from "@/components/layout/PaymentList";
 import {
   Avatar,
@@ -67,6 +71,10 @@ const items: MenuItem[] = [
     getItem("User List", "4", <UserOutlined />),
     // getItem("Payment List", "5", <CreditCardOutlined />),
   ]),
+  getItem("Engagement", "sub3", <CommentOutlined />, [
+    getItem("Comments", "6", <CommentOutlined />),
+    getItem("Testimonials", "7", <StarOutlined />),
+  ]),
 ];
 
 const App: React.FC = () => {
@@ -100,6 +108,12 @@ const App: React.FC = () => {
 
       case "4":
         return <Userlist />;
+
+      case "6":
+        return <Comments />;
+
+      case "7":
+        return <Testimonials />;
 
       // case "5":
       //   return <PaymentList />;
