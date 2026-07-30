@@ -263,6 +263,7 @@ export default function Testimonials() {
           rowKey={(record) => record.id}
           columns={columns}
           dataSource={testimonials}
+          size="small"
           loading={isFetching}
           scroll={{ x: 900 }}
         />

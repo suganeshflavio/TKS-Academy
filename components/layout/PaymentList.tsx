@@ -131,6 +131,7 @@ export default function PaymentList() {
             {/* <Card title="Recent Transactions" style={{ borderRadius: 8, padding: 20 }}> */}
             <Table<PaymentRecord>
                 columns={columns}
+                size="small"
                 dataSource={payments}
                 pagination={{ pageSize: 5 }}
                 rowKey="key"

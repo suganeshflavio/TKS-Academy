@@ -715,6 +715,7 @@ export default function Userlist() {
           columns={columns}
           dataSource={users}
           loading={isFetching}
+          size="small"
           pagination={{
             current: page,
             pageSize: limit,

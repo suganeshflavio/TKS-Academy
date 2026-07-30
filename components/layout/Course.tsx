@@ -418,6 +418,7 @@ export default function CoursePage() {
           columns={columns}
           dataSource={courses}
           loading={isFetching}
+          size="small"
           pagination={{
             current: page,
             pageSize: limit,

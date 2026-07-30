@@ -659,6 +659,7 @@ export default function Videos() {
           rowKey={(record) => record.id}
           columns={columns}
           dataSource={videos}
+          size="small"
           loading={isFetching}
           pagination={{
             current: page,
