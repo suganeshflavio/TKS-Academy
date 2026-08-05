@@ -603,18 +603,31 @@ export default function Userlist() {
       render: (_, record) => <Tag>{record.class ?? "-"}</Tag>,
     },
     {
-      title: "Action",
-      key: "action",
-      // align: "right",
+      title: "Course Access",
+      key: "class",
       render: (_, record) => (
-        <Space wrap>
-          <Button
+      <Button
             icon={record.isAccess ? <EyeOutlined /> : <PlusOutlined />}
             variant="outlined"
             onClick={() => openAccessModal(record)}
           >
             {record.isAccess ? "View Course" : "Add Course"}
           </Button>
+      )
+    },
+    {
+      title: "Action",
+      key: "action",
+      // align: "right",
+      render: (_, record) => (
+        <Space wrap>
+          {/* <Button
+            icon={record.isAccess ? <EyeOutlined /> : <PlusOutlined />}
+            variant="outlined"
+            onClick={() => openAccessModal(record)}
+          >
+            {record.isAccess ? "View Course" : "Add Course"}
+          </Button> */}
           <Button
             icon={<EditOutlined />}
             color="primary"
@@ -631,7 +644,7 @@ export default function Userlist() {
               title="Block this user?"
               okText="Block"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleUserBlocked(record)}
             >
               <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
@@ -643,7 +656,7 @@ export default function Userlist() {
               title="Unblock this user?"
               okText="Unblock"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleUserBlocked(record)}
             >
               <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>

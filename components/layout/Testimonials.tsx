@@ -203,7 +203,7 @@ export default function Testimonials() {
               title="Hide this testimonial?"
               okText="Hide"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleTestimonialBlocked(record)}
             >
               <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
@@ -215,7 +215,7 @@ export default function Testimonials() {
               title="Unhide this testimonial?"
               okText="Unhide"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleTestimonialBlocked(record)}
             >
               <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>

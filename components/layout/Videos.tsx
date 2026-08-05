@@ -580,7 +580,7 @@ export default function Videos() {
               title="Block this video?"
               okText="Block"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleVideoBlocked(record)}
             >
               <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
@@ -592,7 +592,7 @@ export default function Videos() {
               title="Unblock this video?"
               okText="Unblock"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleVideoBlocked(record)}
             >
               <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>

@@ -278,7 +278,7 @@ export default function Comments() {
         <Form form={form} layout="vertical" requiredMark={false} onFinish={onSubmitReply}>
           <Form.Item
             name="message"
-            label="Reply"
+            // label="Reply"
             rules={[{ required: true, message: "Reply message is required." }]}
           >
             <Input.TextArea rows={4} placeholder="Write a reply..." />

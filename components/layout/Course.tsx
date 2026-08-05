@@ -311,7 +311,7 @@ export default function CoursePage() {
               title="Block this course?"
               okText="Block"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleCourseBlocked(record)}
             >
               <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
@@ -323,7 +323,7 @@ export default function CoursePage() {
               title="Unblock this course?"
               okText="Unblock"
               cancelText="Cancel"
-              okButtonProps={{ loading: statusUpdatingId === record.id }}
+              okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleCourseBlocked(record)}
             >
               <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
