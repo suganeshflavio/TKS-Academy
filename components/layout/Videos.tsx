@@ -24,6 +24,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
+  FormOutlined,
   PlusOutlined,
   SearchOutlined,
   StopOutlined,
@@ -41,6 +42,9 @@ import {
   usePermanentDeleteVideoMutation,
   useUpdateVideoMutation,
 } from "@/store/features/videosApi";
+import McqModal from "../modals/McqModal";
+import ExistingTestsModal from "../modals/ExistingTestsModal";
+import TestAttemptsModal from "../modals/TestAttemptsModal";
 
 const { Title, Text } = Typography;
 
@@ -221,6 +225,12 @@ export default function Videos() {
   const [statusTab, setStatusTab] = useState<"active" | "blocked">("active");
   const [viewFileRecord, setViewFileRecord] = useState<VideoItem | null>(null);
   const [viewVideoRecord, setViewVideoRecord] = useState<VideoItem | null>(null);
+  const [McqModalOpen, setMcqModalOpen] = useState(false);
+  const [existingTestsOpen, setExistingTestsOpen] = useState(false);
+  const [attemptsOpen, setAttemptsOpen] = useState(false);
+  const [selectedTestVideo, setSelectedTestVideo] = useState<VideoItem | null>(null);
+  const [selectedTestId, setSelectedTestId] = useState<string | undefined>();
+  const [selectedTestName, setSelectedTestName] = useState<string | undefined>();
   const [videoUploadResult, setVideoUploadResult] = useState<{
     videoFileId: string;
     videoFileName: string;
@@ -526,32 +536,66 @@ export default function Videos() {
         </div>
       ),
     },
+    // {
+    //   title: "Video",
+    //   key: "video",
+    //   render: (_, record) => (
+    //     <Button
+    //       icon={<VideoCameraOutlined />}
+    //       disabled={!record.videoUrl && !record.youtubeUrl}
+    //       onClick={() => setViewVideoRecord(record)}
+    //     >
+    //       View Video
+    //     </Button>
+    //   ),
+    // },
     {
-      title: "Video",
-      key: "video",
+      title: "Media Files",
+      key: "notesUrl",
       render: (_, record) => (
+        <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
         <Button
           icon={<VideoCameraOutlined />}
           disabled={!record.videoUrl && !record.youtubeUrl}
           onClick={() => setViewVideoRecord(record)}
         >
-          View Video
+          Video
         </Button>
-      ),
-    },
-    {
-      title: "Notes",
-      key: "notesUrl",
-      render: (_, record) => (
         <Button
           icon={<FileTextOutlined />}
           disabled={!record.notesUrl}
           onClick={() => setViewFileRecord(record)}
         >
-          View Notes
+          Notes
         </Button>
+        </div>
       ),
     },
+    // {
+    //   title: "MCQ / Test",
+    //   key: "mcqTest",
+    //   render: (_, record) => (
+    //     <Space wrap>
+    //       <Button
+    //         icon={<FormOutlined />}
+    //         onClick={() => {
+    //           setSelectedTestVideo(record);
+    //           setMcqModalOpen(true);
+    //         }}
+    //       >
+    //         Create Test
+    //       </Button>
+    //       <Button
+    //         onClick={() => {
+    //           setSelectedTestVideo(record);
+    //           setExistingTestsOpen(true);
+    //         }}
+    //       >
+    //         Existing Tests
+    //       </Button>
+    //     </Space>
+    //   ),
+    // },
     {
       title: "Action",
       key: "action",
@@ -618,6 +662,47 @@ export default function Videos() {
   ];
 
   return (
+    <>
+    {McqModalOpen && (
+      <McqModal
+        open={McqModalOpen}
+        videoId={selectedTestVideo?.id}
+        videoName={selectedTestVideo?.videoName ?? selectedTestVideo?.title}
+        onCancel={() => {
+          setMcqModalOpen(false);
+          setSelectedTestVideo(null);
+        }}
+        onSave={() => {
+          setMcqModalOpen(false);
+          setSelectedTestVideo(null);
+        }}
+      />
+    )}
+    <ExistingTestsModal
+      open={existingTestsOpen}
+      videoId={selectedTestVideo?.id}
+      videoName={selectedTestVideo?.videoName ?? selectedTestVideo?.title}
+      onViewAttempts={(testId, testName) => {
+        setSelectedTestId(testId);
+        setSelectedTestName(testName);
+        setExistingTestsOpen(false);
+        setAttemptsOpen(true);
+      }}
+      onCancel={() => {
+        setExistingTestsOpen(false);
+        setSelectedTestVideo(null);
+      }}
+    />
+    <TestAttemptsModal
+      open={attemptsOpen}
+      testId={selectedTestId}
+      testName={selectedTestName}
+      onCancel={() => {
+        setAttemptsOpen(false);
+        setSelectedTestId(undefined);
+        setSelectedTestName(undefined);
+      }}
+    />
     <Card style={{ borderRadius: 8 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
         <Space align="center" style={{ display: "flex", justifyContent: "space-between" }} wrap>
@@ -847,5 +932,6 @@ export default function Videos() {
         )}
       </Modal>
     </Card>
+    </>
   );
 }

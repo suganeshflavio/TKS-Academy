@@ -577,26 +577,27 @@ export default function Userlist() {
 
   const columns: ColumnsType<UserItem> = [
     {
-      title: "User",
+      title: "User Info",
       key: "user",
       render: (_, record) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           <Text strong>{record.name ?? "-"}</Text>
           <Text type="secondary">{record.email ?? "-"}</Text>
+          <Text type="secondary">+91 {record.mobile ?? "-"}</Text>
         </div>
       ),
     },
-    {
-      title: "Phone",
-      key: "mobile",
-      dataIndex: "mobile",
-      render: (value: string | undefined) => value ?? "-",
-    },
-    {
-      title: "Role",
-      key: "role",
-      render: (_, record) => <Tag>{record.role ?? record.Role ?? "student"}</Tag>,
-    },
+    // {
+    //   title: "Phone",
+    //   key: "mobile",
+    //   dataIndex: "mobile",
+    //   render: (value: string | undefined) => value ?? "-",
+    // },
+    // {
+    //   title: "Role",
+    //   key: "role",
+    //   render: (_, record) => <Tag>{record.role ?? record.Role ?? "student"}</Tag>,
+    // },
     {
       title: "Class",
       key: "class",
