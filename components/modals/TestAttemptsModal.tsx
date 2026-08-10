@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
-import { Empty, Modal, Space, Table, Tag, Typography } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Descriptions, Divider, Empty, Modal, Pagination, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useGetTestAttemptsQuery } from "@/store/features/testsApi";
+import type { TestAttemptItem } from "@/store/features/testsApi";
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 interface Props {
   readonly open: boolean;
@@ -15,22 +16,85 @@ interface Props {
 }
 
 export default function TestAttemptsModal({ open, onCancel, testId, testName }: Props) {
-  const { data, isFetching } = useGetTestAttemptsQuery(testId ?? "", { skip: !testId || !open });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data, isFetching } = useGetTestAttemptsQuery(
+    { id: testId ?? "", page, limit: pageSize },
+    { skip: !testId || !open },
+  );
   const attempts = useMemo(() => data?.attempts ?? [], [data]);
+  const [selectedAttempt, setSelectedAttempt] = useState<TestAttemptItem | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
-  const columns: ColumnsType<Record<string, unknown>> = [
+  useEffect(() => {
+    if (open) {
+      setPage(1);
+      setPageSize(10);
+      setSelectedAttempt(null);
+      setDetailOpen(false);
+    }
+  }, [open, testId]);
+
+  const getStudentName = (attempt: TestAttemptItem) => {
+    const candidate = [attempt.student?.fullName, attempt.student?.name, attempt.studentName].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+    return candidate ?? "Unknown student";
+  };
+  const getStudentEmail = (attempt: TestAttemptItem) => {
+    const candidate = [attempt.student?.email, attempt.studentEmail].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+    return candidate ?? "";
+  };
+  const getStatusColor = (status?: string) => {
+    const normalized = status?.toLowerCase();
+    if (normalized === "completed") return "green";
+    if (normalized === "in_progress" || normalized === "in-progress") return "blue";
+    return "orange";
+  };
+
+  const getScoreDisplay = (record: TestAttemptItem) => {
+    const obtainedMarks = [record.obtainedMarks, record.marksObtained, record.score].find((value): value is number => typeof value === "number");
+    const totalMarks = typeof record.totalMarks === "number" ? record.totalMarks : null;
+
+    if (obtainedMarks == null) {
+      return "-";
+    }
+
+    return totalMarks == null ? `${obtainedMarks}` : `${obtainedMarks}/${totalMarks}`;
+  };
+
+  const handlePageChange = (nextPage: number, nextSize?: number) => {
+    if (nextSize && nextSize !== pageSize) {
+      setPageSize(nextSize);
+      setPage(1);
+      return;
+    }
+
+    setPage(nextPage);
+  };
+
+  const columns: ColumnsType<TestAttemptItem> = [
     {
       title: "Student",
       dataIndex: "student",
       key: "student",
+      render: (_value, record) => (
+        <div>
+          <div>{getStudentName(record)}</div>
+          <Text type="secondary">{getStudentEmail(record)}</Text>
+        </div>
+      ),
+    },
+    {
+      title: "Video",
+      dataIndex: "video",
+      key: "video",
       render: (_value, record) => {
-        const student = record.student as { fullName?: string; name?: string; email?: string } | undefined;
-        const studentName = String(student?.fullName || student?.name || record.studentName || "Unknown student");
-        const studentEmail = String(student?.email || record.studentEmail || "");
+        const videoName = record.video?.videoName || "Unknown video";
+        const subject = record.video?.subject ? `${record.video.subject}` : "";
+        const chapter = record.video?.chapter ? ` • ${record.video.chapter}` : "";
         return (
           <div>
-            <div>{studentName}</div>
-            <Text type="secondary">{studentEmail}</Text>
+            <div>{videoName}</div>
+            <Text type="secondary">{`${subject}${chapter}`.trim()}</Text>
           </div>
         );
       },
@@ -39,22 +103,13 @@ export default function TestAttemptsModal({ open, onCancel, testId, testName }: 
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (value) => <Tag color={value === "completed" ? "green" : "orange"}>{String(value || "pending")}</Tag>,
+      render: (value) => <Tag color={getStatusColor(String(value))}>{String(value || "pending")}</Tag>,
     },
     {
       title: "Score",
-      dataIndex: "score",
+      dataIndex: "obtainedMarks",
       key: "score",
-      render: (_value, record) => {
-        const score = record.score ?? record.marksObtained;
-        return <span>{score != null ? `${score}` : "-"}</span>;
-      },
-    },
-    {
-      title: "Total",
-      dataIndex: "totalMarks",
-      key: "totalMarks",
-      render: (value) => <span>{value ?? "-"}</span>,
+      render: (_value, record) => <span>{getScoreDisplay(record)}</span>,
     },
     {
       title: "Submitted",
@@ -62,19 +117,91 @@ export default function TestAttemptsModal({ open, onCancel, testId, testName }: 
       key: "submittedAt",
       render: (value) => <span>{value ? new Date(String(value)).toLocaleString() : "-"}</span>,
     },
+    {
+      title: "Action",
+      key: "action",
+      render: (_value, record) => (
+        <Button type="link" onClick={() => {
+          setSelectedAttempt(record);
+          setDetailOpen(true);
+        }}>
+          View
+        </Button>
+      ),
+    },
   ];
 
   return (
-    <Modal title={testName ? `Attempts for ${testName}` : "Student Attempts"} open={open} onCancel={onCancel} footer={null} width={860} destroyOnHidden>
-      <Space direction="vertical" style={{ width: "100%" }}>
-        {isFetching ? (
-          <Text type="secondary">Loading attempts...</Text>
-        ) : attempts.length === 0 ? (
-          <Empty description="No student attempts yet." />
-        ) : (
-          <Table dataSource={attempts as Record<string, unknown>[]} columns={columns} rowKey={(record) => String(record.id || Math.random())} pagination={false} />
-        )}
-      </Space>
-    </Modal>
+    <>
+      <Modal title={testName ? `Attempts for ${testName}` : "Student Attempts"} open={open} onCancel={onCancel} footer={null} width={980} destroyOnHidden>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
+          {isFetching ? (
+            <Text type="secondary">Loading attempts...</Text>
+          ) : attempts.length === 0 ? (
+            <Empty description="No student attempts yet." />
+          ) : (
+            <>
+              <Table dataSource={attempts} columns={columns} rowKey={(record, index) => record.id ?? `attempt-${index}`} pagination={false} />
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                <Pagination
+                  current={data?.page ?? page}
+                  pageSize={data?.limit ?? pageSize}
+                  total={data?.total ?? 0}
+                  showSizeChanger
+                  pageSizeOptions={["5", "10", "20"]}
+                  showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} attempts`}
+                  onChange={handlePageChange}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
+      <Modal open={detailOpen} onCancel={() => setDetailOpen(false)} title="Attempt details" footer={null} width={860} destroyOnHidden>
+        {selectedAttempt ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
+            <Title level={5} style={{ marginBottom: 0 }}>{testName || selectedAttempt.test?.testName || "Attempt details"}</Title>
+            <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
+              <Descriptions.Item label="Student">{getStudentName(selectedAttempt)}</Descriptions.Item>
+              <Descriptions.Item label="Email">{getStudentEmail(selectedAttempt) || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Video">{selectedAttempt.video?.videoName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Course">{selectedAttempt.video?.course?.courseName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Status"><Tag color={getStatusColor(selectedAttempt.status)}>{selectedAttempt.status || "pending"}</Tag></Descriptions.Item>
+              <Descriptions.Item label="Questions">{selectedAttempt.totalQuestions ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Correct">{selectedAttempt.correctAnswers ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Wrong">{selectedAttempt.wrongAnswers ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Marks">{selectedAttempt.obtainedMarks ?? selectedAttempt.marksObtained ?? "-"}/{selectedAttempt.totalMarks ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Started">{selectedAttempt.startedAt ? new Date(selectedAttempt.startedAt).toLocaleString() : "-"}</Descriptions.Item>
+              <Descriptions.Item label="Submitted">{selectedAttempt.submittedAt ? new Date(selectedAttempt.submittedAt).toLocaleString() : "-"}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider />
+            <Text strong>Answers</Text>
+            {selectedAttempt.answers && selectedAttempt.answers.length > 0 ? (
+              <Table
+                dataSource={selectedAttempt.answers}
+                columns={[
+                  { title: "Question", dataIndex: "question", key: "question", render: (value) => <span>{value || "-"}</span> },
+                  { title: "Selected", dataIndex: "selected", key: "selected", render: (value) => <span>{value || "-"}</span> },
+                  { title: "Correct", dataIndex: "correctOption", key: "correctOption", render: (value) => <span>{value || "-"}</span> },
+                  {
+                    title: "Result",
+                    dataIndex: "correct",
+                    key: "correct",
+                    render: (value) => <Tag color={value ? "green" : "red"}>{value ? "Correct" : "Incorrect"}</Tag>,
+                  },
+                ]}
+                rowKey={(record, index) => record.questionId || String(index)}
+                pagination={false}
+                size="small"
+              />
+            ) : (
+              <Empty description="No answer breakdown available." />
+            )}
+          </div>
+        ) : null}
+      </Modal>
+    </>
   );
 }

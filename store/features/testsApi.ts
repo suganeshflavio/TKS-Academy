@@ -45,6 +45,19 @@ export type TestsListResponse = {
   totalPages: number;
 };
 
+export type TestAttemptAnswer = {
+  questionId?: string;
+  question?: string;
+  optionA?: string;
+  optionB?: string;
+  optionC?: string;
+  optionD?: string;
+  correctOption?: string;
+  selected?: string;
+  correct?: boolean;
+  explanation?: string;
+};
+
 export type TestAttemptItem = {
   id?: string;
   testId?: string;
@@ -52,9 +65,15 @@ export type TestAttemptItem = {
   studentName?: string;
   studentEmail?: string;
   status?: string;
+  marksPerQuestion?: number;
+  totalQuestions?: number;
+  correctAnswers?: number;
+  wrongAnswers?: number;
   marksObtained?: number;
+  obtainedMarks?: number;
   totalMarks?: number;
   score?: number;
+  startedAt?: string;
   createdAt?: string;
   submittedAt?: string;
   completedAt?: string;
@@ -63,12 +82,32 @@ export type TestAttemptItem = {
     fullName?: string;
     email?: string;
     name?: string;
+    mobile?: string;
+    class?: string;
   };
+  video?: {
+    id?: string;
+    videoName?: string;
+    subject?: string;
+    chapter?: string;
+    course?: {
+      id?: string;
+      courseName?: string;
+    };
+  };
+  test?: {
+    id?: string;
+    testName?: string;
+  };
+  answers?: TestAttemptAnswer[];
 };
 
 export type TestAttemptsListResponse = {
   attempts: TestAttemptItem[];
+  page?: number;
+  limit?: number;
   total?: number;
+  totalPages?: number;
 };
 
 type TestQueryParams = {
@@ -76,6 +115,12 @@ type TestQueryParams = {
   limit?: number;
   search?: string;
   videoId?: string;
+};
+
+type TestAttemptsQueryParams = {
+  id: string;
+  page?: number;
+  limit?: number;
 };
 
 const unwrapQuestion = (response: unknown): TestQuestion => {
@@ -117,6 +162,31 @@ const unwrapTestsList = (response: unknown): TestsListResponse => {
   return response as TestsListResponse;
 };
 
+const unwrapAttemptsList = (response: unknown): TestAttemptsListResponse => {
+  if (response && typeof response === "object" && !Array.isArray(response)) {
+    const data = (response as Record<string, unknown>).data;
+
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const attempts = (data as Record<string, unknown>).attempts;
+      if (Array.isArray(attempts)) {
+        return {
+          attempts: attempts as TestAttemptItem[],
+          page: (data as Record<string, unknown>).page as number | undefined,
+          limit: (data as Record<string, unknown>).limit as number | undefined,
+          total: (data as Record<string, unknown>).total as number | undefined,
+          totalPages: (data as Record<string, unknown>).totalPages as number | undefined,
+        };
+      }
+    }
+  }
+
+  if (Array.isArray(response)) {
+    return { attempts: response as TestAttemptItem[] };
+  }
+
+  return { attempts: [] };
+};
+
 const unwrapTest = (response: unknown): TestItem => {
   if (response && typeof response === "object" && !Array.isArray(response)) {
     const data = (response as Record<string, unknown>).data;
@@ -155,29 +225,32 @@ export const testsApi = appApi.injectEndpoints({
       transformResponse: unwrapTest,
       invalidatesTags: [{ type: "Test", id: "LIST" }],
     }),
-    getTestAttempts: builder.query<TestAttemptsListResponse, string>({
-      query: (id) => ({
-        url: `/tests/${id}/attempts`,
-        method: "GET",
-      }),
-      transformResponse: (response: unknown) => {
-        if (response && typeof response === "object" && !Array.isArray(response)) {
-          const data = (response as Record<string, unknown>).data;
-          if (data && typeof data === "object" && !Array.isArray(data)) {
-            const attempts = (data as Record<string, unknown>).attempts;
-            if (Array.isArray(attempts)) {
-              return { attempts: attempts as TestAttemptItem[], total: (data as Record<string, unknown>).total as number | undefined };
-            }
-          }
+    getTestAttempts: builder.query<TestAttemptsListResponse, TestAttemptsQueryParams | typeof skipToken>({
+      query: (params) => {
+        if (params === skipToken) {
+          return {
+            url: "/tests/attempts",
+            method: "GET",
+          };
         }
 
-        if (Array.isArray(response)) {
-          return { attempts: response as TestAttemptItem[] };
-        }
-
-        return { attempts: [] };
+        return {
+          url: `/tests/${params.id}/attempts`,
+          method: "GET",
+          params: {
+            page: params.page,
+            limit: params.limit,
+          },
+        };
       },
-      providesTags: (_result, _error, id) => [{ type: "Test", id: `${id}-attempts` }],
+      transformResponse: unwrapAttemptsList,
+      providesTags: (_result, _error, args) => {
+        if (args === skipToken) {
+          return [];
+        }
+
+        return [{ type: "Test", id: `${args.id}-attempts-${args.page ?? 1}` }];
+      },
     }),
     getTestById: builder.query<TestItem, string>({
       query: (id) => ({

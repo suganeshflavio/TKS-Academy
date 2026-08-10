@@ -42,6 +42,7 @@ import {
   usePermanentDeleteVideoMutation,
   useUpdateVideoMutation,
 } from "@/store/features/videosApi";
+import { useGetTestsQuery } from "@/store/features/testsApi";
 import McqModal from "../modals/McqModal";
 import ExistingTestsModal from "../modals/ExistingTestsModal";
 import TestAttemptsModal from "../modals/TestAttemptsModal";
@@ -244,6 +245,7 @@ export default function Videos() {
     limit,
     search: searchText || undefined,
   });
+  const { data: testsData } = useGetTestsQuery({ page: 1, limit: 100 });
 
   const { data: coursesPayload } = useGetCoursesQuery({ page: 1, limit: 100 });
   const videos = useMemo(() => {
@@ -258,6 +260,14 @@ export default function Videos() {
         return isActive !== false;
       });
     }, [coursesPayload]);
+  const videosWithQuestionTests = useMemo(() => {
+    const ids = (testsData?.tests ?? [])
+      .filter((test) => (test._count?.questions ?? test.questions?.length ?? 0) > 0)
+      .map((test) => test.videoId)
+      .filter((videoId): videoId is string => Boolean(videoId));
+
+    return new Set(ids);
+  }, [testsData]);
   const selectedCourse = useMemo(
     () => courses.find((course) => course.id === selectedCourseId),
     [courses, selectedCourseId],
@@ -556,6 +566,7 @@ export default function Videos() {
         <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
         <Button
           icon={<VideoCameraOutlined />}
+          size="small"
           disabled={!record.videoUrl && !record.youtubeUrl}
           onClick={() => setViewVideoRecord(record)}
         >
@@ -563,6 +574,7 @@ export default function Videos() {
         </Button>
         <Button
           icon={<FileTextOutlined />}
+          size="small"
           disabled={!record.notesUrl}
           onClick={() => setViewFileRecord(record)}
         >
@@ -571,31 +583,39 @@ export default function Videos() {
         </div>
       ),
     },
-    // {
-    //   title: "MCQ / Test",
-    //   key: "mcqTest",
-    //   render: (_, record) => (
-    //     <Space wrap>
-    //       <Button
-    //         icon={<FormOutlined />}
-    //         onClick={() => {
-    //           setSelectedTestVideo(record);
-    //           setMcqModalOpen(true);
-    //         }}
-    //       >
-    //         Create Test
-    //       </Button>
-    //       <Button
-    //         onClick={() => {
-    //           setSelectedTestVideo(record);
-    //           setExistingTestsOpen(true);
-    //         }}
-    //       >
-    //         Existing Tests
-    //       </Button>
-    //     </Space>
-    //   ),
-    // },
+    {
+      title: "MCQ / Test",
+      key: "mcqTest",
+      render: (_, record) => {
+        const hasQuestionTests = record.id ? videosWithQuestionTests.has(record.id) : false;
+
+        return (
+          <Space wrap>
+            {!hasQuestionTests ? (
+              <Button
+                size="small"
+                icon={<FormOutlined />}
+                onClick={() => {
+                  setSelectedTestVideo(record);
+                  setMcqModalOpen(true);
+                }}
+              >
+                Create Test
+              </Button>
+            ) : null}
+            <Button
+              size="small"
+              onClick={() => {
+                setSelectedTestVideo(record);
+                setExistingTestsOpen(true);
+              }}
+            >
+              Existing Tests
+            </Button>
+          </Space>
+        );
+      },
+    },
     {
       title: "Action",
       key: "action",
@@ -611,6 +631,7 @@ export default function Videos() {
           <Button
             icon={<EditOutlined />}
             color="primary"
+            size="small"
             variant="text"
             onClick={() => {
               setEditingId(record.id);
@@ -627,7 +648,7 @@ export default function Videos() {
               okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleVideoBlocked(record)}
             >
-              <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+              <Button icon={<StopOutlined />} size="small" color="danger" variant="filled" loading={statusUpdatingId === record.id}>
                 Block
               </Button>
             </Popconfirm>
@@ -652,7 +673,7 @@ export default function Videos() {
             okButtonProps={{ danger: true, loading: deletingId === record.id }}
             onConfirm={() => onDeleteVideo(record)}
           >
-            <Button color="danger" variant="outlined" icon={<DeleteOutlined />} loading={deletingId === record.id}>
+            <Button color="danger" variant="outlined" size="small" icon={<DeleteOutlined />} loading={deletingId === record.id}>
               Delete
             </Button>
           </Popconfirm>
