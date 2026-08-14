@@ -352,6 +352,7 @@ function TestCard({ test, onDeleteTest, onViewAttempts, onRefresh }: TestCardPro
                         <div style={{ marginTop: 8 }}>
                           <Text type="secondary">Correct option: {question.correctOption || "-"}</Text>
                         </div>
+                          <Text type="secondary">Explanation: {question.explanation || "-"}</Text>
                       </div>
                     )}
                   </div>
