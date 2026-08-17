@@ -13,6 +13,7 @@ import {
   Pagination,
   Popconfirm,
   Space,
+  Spin,
   Tag,
   Typography,
   message,
@@ -224,10 +225,13 @@ export default function Comments() {
         />
 
         {isFetching ? (
-          <Text type="secondary">Loading comments...</Text>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 100 }}>
+            <Spin />
+            </div>
         ) : videoGroups.length === 0 ? (
           <Empty description="No comments found." />
         ) : (
+          <>
           <Collapse
             items={videoGroups.map((group) => ({
               key: group.videoId,
@@ -252,8 +256,6 @@ export default function Comments() {
               ),
             }))}
           />
-        )}
-
         <Pagination
           current={page}
           pageSize={limit}
@@ -265,6 +267,9 @@ export default function Comments() {
           }}
           style={{ alignSelf: "flex-end" }}
         />
+        </>
+        )}
+
       </div>
 
       <Modal

@@ -784,12 +784,12 @@ export default function Videos() {
       <Modal
         title={editingId ? "Edit Video" : "Add Video"}
         open={open}
-        style={{ top:50 }}
         width={700}
-        height={500}
+        // height={500}
         onCancel={resetModal}
         onOk={() => form.submit()}
         confirmLoading={isCreating || isUpdating || isLoadingVideoDetail}
+        centered
         destroyOnHidden
       >
         <Form form={form} layout="vertical" requiredMark={false} onFinish={onSubmit}>
@@ -899,6 +899,7 @@ export default function Videos() {
         onCancel={() => setViewFileRecord(null)}
         footer={<Button onClick={() => setViewFileRecord(null)}>Close</Button>}
         width={800}
+        centered
       >
         {viewFileRecord?.notesUrl ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

@@ -12,6 +12,7 @@ import {
   Modal,
   Select,
   Space,
+  Spin,
   Typography,
   message,
 } from "antd";
@@ -238,7 +239,7 @@ export default function McqModal({ open, onCancel, onSave, videoId, videoName }:
               Cancel
             </Button>
             <Button type="primary" htmlType="submit" loading={isCreating}>
-              Create Testsadas
+              Create Tests
             </Button>
           </Space>
         </Form>
@@ -248,7 +249,11 @@ export default function McqModal({ open, onCancel, onSave, videoId, videoName }:
         <div>
           <Title level={5} style={{ marginBottom: 8 }}>Existing Tests</Title>
           {isFetching ? (
-            <Text type="secondary">Loading tests...</Text>
+            <Text type="secondary">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 100 }}>
+            <Spin />
+            </div>
+            </Text>
           ) : tests.length === 0 ? (
             <Empty description="No tests created for this video yet." />
           ) : (

@@ -10,6 +10,7 @@ import {
   Modal,
   Select,
   Space,
+  Spin,
   Tag,
   Typography,
   message,
@@ -58,7 +59,7 @@ function TestCard({ test, onDeleteTest, onViewAttempts, onRefresh }: TestCardPro
   const [updateQuestion, { isLoading: isUpdatingQuestion }] = useUpdateQuestionMutation();
   const [deleteQuestion, { isLoading: isDeletingQuestion }] = useDeleteQuestionMutation();
   const [deleteTest, { isLoading: isDeletingTest }] = useDeleteTestMutation();
-  const { data: fullTest, refetch: refetchTest } = useGetTestByIdQuery(test.id, { skip: !expanded || !test.id });
+  const { data: fullTest, refetch: refetchTest, isFetching: isFetchingQuestions } = useGetTestByIdQuery(test.id, { skip: !expanded || !test.id });
   const detailQuestions = useMemo(() => fullTest?.questions ?? [], [fullTest]);
 
   useEffect(() => {
@@ -241,7 +242,11 @@ function TestCard({ test, onDeleteTest, onViewAttempts, onRefresh }: TestCardPro
               </Button>
             </Space>
             <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-              {detailQuestions.length === 0 ? (
+              {isFetchingQuestions ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 80 }}>
+                  <Spin />
+                </div>
+              ) : detailQuestions.length === 0 ? (
                 <Text type="secondary">No questions yet.</Text>
               ) : (
                 detailQuestions.map((question) => (
@@ -392,7 +397,9 @@ export default function ExistingTestsModal({ open, onCancel, videoId, videoName,
     >
       <Space direction="vertical" style={{ width: "100%" }}>
         {isFetching ? (
-          <Text type="secondary">Loading tests...</Text>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 100 }}>
+            <Spin />
+            </div>
         ) : tests.length === 0 ? (
           <Empty description="No tests created for this video yet." />
         ) : (

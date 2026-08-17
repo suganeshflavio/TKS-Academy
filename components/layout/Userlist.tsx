@@ -750,6 +750,7 @@ export default function Userlist() {
         onCancel={resetModal}
         onOk={() => form.submit()}
         confirmLoading={isCreating || isUpdating || isLoadingUserDetail}
+        centered
         destroyOnHidden
       >
         <Form form={form} layout="vertical" requiredMark={false} onFinish={onSubmit}>

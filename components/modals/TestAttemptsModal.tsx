@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Descriptions, Divider, Empty, Modal, Pagination, Table, Tag, Typography } from "antd";
+import { Button, Descriptions, Divider, Empty, Modal, Pagination, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useGetTestAttemptsQuery } from "@/store/features/testsApi";
 import type { TestAttemptItem } from "@/store/features/testsApi";
@@ -136,7 +136,11 @@ export default function TestAttemptsModal({ open, onCancel, testId, testName }: 
       <Modal title={testName ? `Attempts for ${testName}` : "Student Attempts"} open={open} onCancel={onCancel} footer={null} width={980} destroyOnHidden>
         <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
           {isFetching ? (
-            <Text type="secondary">Loading attempts...</Text>
+            <Text type="secondary">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 100 }}>
+            <Spin />
+            </div>
+            </Text>
           ) : attempts.length === 0 ? (
             <Empty description="No student attempts yet." />
           ) : (
