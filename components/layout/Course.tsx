@@ -298,6 +298,7 @@ export default function CoursePage() {
           <Button
             icon={<EditOutlined />}
             color="primary"
+            size="small"
             variant="text"
             onClick={() => {
               setEditingId(record.id);
@@ -314,7 +315,7 @@ export default function CoursePage() {
               okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleCourseBlocked(record)}
             >
-              <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+              <Button icon={<StopOutlined />} size="small" color="danger" variant="filled" loading={statusUpdatingId === record.id}>
                 Block
               </Button>
             </Popconfirm>
@@ -326,7 +327,7 @@ export default function CoursePage() {
               okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleCourseBlocked(record)}
             >
-              <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+              <Button icon={<CheckCircleOutlined />} size="small" color="danger" variant="filled" loading={statusUpdatingId === record.id}>
                 Unblock
               </Button>
             </Popconfirm>
@@ -339,7 +340,7 @@ export default function CoursePage() {
             okButtonProps={{ danger: true, loading: deletingId === record.id }}
             onConfirm={() => onDeleteCourse(record)}
           >
-            <Button color="danger" variant="outlined" icon={<DeleteOutlined />} loading={deletingId === record.id}>
+            <Button size="small" color="danger" variant="outlined" icon={<DeleteOutlined />} loading={deletingId === record.id}>
               Delete
             </Button>
           </Popconfirm>

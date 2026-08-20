@@ -54,7 +54,7 @@ export default function NotesModal({
             accept=".pdf"
             beforeUpload={() => false}
           >
-            <Button icon={<UploadOutlined />}>
+            <Button size="small" icon={<UploadOutlined />}>
               Upload PDF
             </Button>
           </Upload>

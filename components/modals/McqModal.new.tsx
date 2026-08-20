@@ -174,7 +174,7 @@ export default function McqModal({ open, onCancel, onSave, videoId, videoName }:
                     <Space align="center" style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                       <Text strong>Question {index + 1}</Text>
                       {fields.length > 1 ? (
-                        <Button danger type="text" icon={<DeleteOutlined />} onClick={() => remove(field.name)}>
+                        <Button danger size="small" type="text" icon={<DeleteOutlined />} onClick={() => remove(field.name)}>
                           Remove
                         </Button>
                       ) : null}
@@ -222,7 +222,7 @@ export default function McqModal({ open, onCancel, onSave, videoId, videoName }:
                   </Card>
                 ))}
 
-                <Button icon={<PlusOutlined />} onClick={() => add(createDefaultQuestion())}>
+                <Button icon={<PlusOutlined />} size="small" onClick={() => add(createDefaultQuestion())}>
                   Add another question
                 </Button>
               </div>
@@ -269,7 +269,7 @@ export default function McqModal({ open, onCancel, onSave, videoId, videoName }:
                         </Text>
                       </div>
                     </div>
-                    <Button danger icon={<DeleteOutlined />} loading={isDeleting} onClick={() => handleDeleteTest(test.id)}>
+                    <Button danger size="small" icon={<DeleteOutlined />} loading={isDeleting} onClick={() => handleDeleteTest(test.id)}>
                       Delete
                     </Button>
                   </Space>

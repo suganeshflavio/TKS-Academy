@@ -180,13 +180,13 @@ function TestCard({ test, onDeleteTest, onViewAttempts, onRefresh }: TestCardPro
           </div>
         </div>
         <Space>
-          <Button onClick={() => setExpanded((prev) => !prev)}>
+          <Button size="small" onClick={() => setExpanded((prev) => !prev)}>
             {expanded ? "Hide" : "View"}
           </Button>
-          <Button icon={<EyeOutlined />} onClick={() => onViewAttempts?.(test.id, test.testName)}>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => onViewAttempts?.(test.id, test.testName)}>
             Attempts
           </Button>
-          <Button danger icon={<DeleteOutlined />} loading={isDeletingTest} onClick={() => onDeleteTest(test.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />} loading={isDeletingTest} onClick={() => onDeleteTest(test.id)}>
             Delete Test
           </Button>
         </Space>
@@ -198,7 +198,7 @@ function TestCard({ test, onDeleteTest, onViewAttempts, onRefresh }: TestCardPro
             <Space style={{ display: "flex", justifyContent: "space-between", width: "100%" }} align="center" wrap>
               <Text strong>Test details</Text>
               {!editingTest ? (
-                <Button icon={<EditOutlined />} onClick={() => setEditingTest(true)}>
+                <Button size="small" icon={<EditOutlined />} onClick={() => setEditingTest(true)}>
                   Edit Test
                 </Button>
               ) : null}
@@ -237,9 +237,9 @@ function TestCard({ test, onDeleteTest, onViewAttempts, onRefresh }: TestCardPro
           <Card size="small">
             <Space style={{ display: "flex", justifyContent: "space-between", width: "100%" }} align="center" wrap>
               <Text strong>Questions</Text>
-              <Button type="dashed" onClick={() => void handleAddQuestion()} loading={isAddingQuestion}>
+              {/* <Button type="dashed" onClick={() => void handleAddQuestion()} loading={isAddingQuestion}>
                 Add Question
-              </Button>
+              </Button> */}
             </Space>
             <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
               {isFetchingQuestions ? (

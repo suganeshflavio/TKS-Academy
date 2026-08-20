@@ -190,6 +190,7 @@ export default function Testimonials() {
           <Button
             icon={<EditOutlined />}
             color="primary"
+            size="small"
             variant="text"
             onClick={() => {
               setEditingId(record.id);
@@ -206,7 +207,7 @@ export default function Testimonials() {
               okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleTestimonialBlocked(record)}
             >
-              <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+              <Button icon={<StopOutlined />} size="small" color="danger" variant="filled" loading={statusUpdatingId === record.id}>
                 Hide
               </Button>
             </Popconfirm>
@@ -218,7 +219,7 @@ export default function Testimonials() {
               okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleTestimonialBlocked(record)}
             >
-              <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+              <Button icon={<CheckCircleOutlined />} size="small" color="danger" variant="filled" loading={statusUpdatingId === record.id}>
                 Unhide
               </Button>
             </Popconfirm>
@@ -231,7 +232,7 @@ export default function Testimonials() {
             okButtonProps={{ danger: true, loading: deletingId === record.id }}
             onConfirm={() => onDeleteTestimonial(record)}
           >
-            <Button danger icon={<DeleteOutlined />} loading={deletingId === record.id}>
+            <Button size="small" danger icon={<DeleteOutlined />} loading={deletingId === record.id}>
               Delete
             </Button>
           </Popconfirm>

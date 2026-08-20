@@ -862,7 +862,7 @@ export default function Videos() {
                 setVideoFileRemoved(true);
               }}
             >
-              <Button icon={<VideoCameraOutlined />} loading={isUploadingVideo}>
+              <Button icon={<VideoCameraOutlined />} size="small" loading={isUploadingVideo}>
                 {isUploadingVideo ? "Uploading..." : "Select MP4"}
               </Button>
             </Upload>
@@ -878,16 +878,16 @@ export default function Videos() {
 
           <Form.Item
             name="file"
-            label="Upload File (PPT/PPTX/PDF, max 10 MB)"
+            label="Upload File (PDF, max 10 MB)"
             valuePropName="fileList"
             getValueFromEvent={(event) => (Array.isArray(event) ? event : event?.fileList)}
           >
             <Upload
-              accept=".ppt,.pptx,.pdf"
+              accept=".pdf"
               maxCount={1}
               beforeUpload={beforeUploadFile}
             >
-              <Button icon={<UploadOutlined />}>Select File</Button>
+              <Button icon={<UploadOutlined />} size="small">Select File</Button>
             </Upload>
           </Form.Item>
         </Form>

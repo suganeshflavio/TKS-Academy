@@ -194,7 +194,7 @@ export default function McqModal({ open, onCancel, onSave, videoId, videoName }:
                       <Space align="center" style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                         <Text strong>Question {index + 1}</Text>
                         {fields.length > 1 ? (
-                          <Button danger type="text" onClick={() => remove(field.name)}>
+                          <Button size="small" danger type="text" onClick={() => remove(field.name)}>
                             Remove
                           </Button>
                         ) : null}

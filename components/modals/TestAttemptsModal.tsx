@@ -121,7 +121,7 @@ export default function TestAttemptsModal({ open, onCancel, testId, testName }: 
       title: "Action",
       key: "action",
       render: (_value, record) => (
-        <Button type="link" onClick={() => {
+        <Button type="link" size="small" onClick={() => {
           setSelectedAttempt(record);
           setDetailOpen(true);
         }}>

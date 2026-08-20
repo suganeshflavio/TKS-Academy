@@ -610,6 +610,7 @@ export default function Userlist() {
       <Button
             icon={record.isAccess ? <EyeOutlined /> : <PlusOutlined />}
             variant="outlined"
+            size="small"
             onClick={() => openAccessModal(record)}
           >
             {record.isAccess ? "View Course" : "Add Course"}
@@ -632,6 +633,7 @@ export default function Userlist() {
           <Button
             icon={<EditOutlined />}
             color="primary"
+            size="small"
             variant="text"
             onClick={() => {
               setEditingId(record.id);
@@ -648,7 +650,7 @@ export default function Userlist() {
               okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleUserBlocked(record)}
             >
-              <Button icon={<StopOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+              <Button icon={<StopOutlined />} size="small" color="danger" variant="filled" loading={statusUpdatingId === record.id}>
                 Block
               </Button>
             </Popconfirm>
@@ -660,7 +662,7 @@ export default function Userlist() {
               okButtonProps={{danger: true, loading: statusUpdatingId === record.id }}
               onConfirm={() => onToggleUserBlocked(record)}
             >
-              <Button icon={<CheckCircleOutlined />} color="danger" variant="filled" loading={statusUpdatingId === record.id}>
+              <Button icon={<CheckCircleOutlined />} size="small" color="danger" variant="filled" loading={statusUpdatingId === record.id}>
                 Unblock
               </Button>
             </Popconfirm>
@@ -675,7 +677,7 @@ export default function Userlist() {
           >
             <Button
               icon={<DeleteOutlined />}
-              color="danger" variant="outlined"
+              size="small" color="danger" variant="outlined"
               loading={deletingId === record.id}
             >
               Delete
