@@ -145,7 +145,7 @@ export default function TestAttemptsModal({ open, onCancel, testId, testName }: 
             <Empty description="No student attempts yet." />
           ) : (
             <>
-              <Table dataSource={attempts} columns={columns} rowKey={(record, index) => record.id ?? `attempt-${index}`} pagination={false} />
+              <Table dataSource={attempts} columns={columns} rowKey={(record, index) => record.id ?? `attempt-${index}`} pagination={false} scroll={{ x: 1000 }}/>
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
                 <Pagination
                   current={data?.page ?? page}
@@ -199,6 +199,7 @@ export default function TestAttemptsModal({ open, onCancel, testId, testName }: 
                 rowKey={(record, index) => record.questionId || String(index)}
                 pagination={false}
                 size="small"
+                scroll={{ x: 1000 }}
               />
             ) : (
               <Empty description="No answer breakdown available." />
